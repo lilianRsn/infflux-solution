@@ -75,7 +75,7 @@ const swaggerSpec = swaggerJSDoc({
                         client_warehouse_id: {
                             type: "string",
                             format: "uuid",
-                            example: "6f8f2b8d-2a41-4f4c-8d1e-5c7b0a9c1234"
+                            example: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
                         },
                         customer: {
                             type: "object",
@@ -95,7 +95,7 @@ const swaggerSpec = swaggerJSDoc({
                                     type: "string",
                                     example: "25 avenue Livraison, Lyon"
                                 },
-                                site_name: { type: "string", example: "Magasin Lyon" },
+                                site_name: { type: "string", example: "Entrepot Client Lyon" },
                                 delivery_contact_name: { type: "string", example: "Sophie Martin" },
                                 delivery_contact_phone: { type: "string", example: "0611111111" }
                             }
@@ -141,12 +141,14 @@ const swaggerSpec = swaggerJSDoc({
                                     format: "date",
                                     example: "2026-04-30"
                                 },
-                                split_delivery_allowed: { type: "boolean", example: false },
+                                split_delivery_allowed: { type: "boolean", example: true },
                                 partner_delivery_allowed: { type: "boolean", example: true }
                             }
                         }
                     }
                 },
+
+
 
                 CreateTruckRequest: {
                     type: "object",
@@ -189,6 +191,29 @@ const swaggerSpec = swaggerJSDoc({
                     }
                 },
 
+                DeliveryPlan: {
+                    type: "object",
+                    properties: {
+                        id: { type: "string", format: "uuid" },
+                        planned_delivery_date: { type: "string", format: "date", example: "2026-04-24" },
+                        planned_time_window: {
+                            type: "string",
+                            enum: ["morning", "afternoon", "full_day"],
+                            example: "morning"
+                        },
+                        client_warehouse_id: { type: "string", format: "uuid" },
+                        status: {
+                            type: "string",
+                            enum: ["DRAFT", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "BLOCKED"],
+                            example: "DRAFT"
+                        },
+                        total_pallets: { type: "integer", example: 8 },
+                        total_volume_m3: { type: "number", example: 0 },
+                        priority_score: { type: "integer", example: 100 },
+                        created_at: { type: "string", example: "2026-04-23T10:00:00.000Z" },
+                        updated_at: { type: "string", example: "2026-04-23T10:00:00.000Z" }
+                    }
+                },
 
 
                 CreateWarehouseRequest: {
@@ -465,7 +490,6 @@ const swaggerSpec = swaggerJSDoc({
                     }
                 }
             },
-
             "/api/orders": {
                 post: {
                     tags: ["Orders"],
@@ -1066,16 +1090,17 @@ const swaggerSpec = swaggerJSDoc({
                     summary: "Generate delivery plans from unplanned orders",
                     security: [{ bearerAuth: [] }],
                     responses: {
-                        "201": { description: "Delivery plans generated" },
+                        "201": { description: "Delivery plans generated with planned date and time window" },
                         "401": { description: "Unauthorized" },
                         "403": { description: "Forbidden" }
                     }
                 }
             },
+
             "/api/delivery-plans": {
                 get: {
                     tags: ["Delivery Plans"],
-                    summary: "List delivery plans",
+                    summary: "List delivery plans with planned date and time window",
                     security: [{ bearerAuth: [] }],
                     responses: {
                         "200": { description: "Delivery plans list" },
