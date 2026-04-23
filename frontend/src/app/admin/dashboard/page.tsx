@@ -155,23 +155,49 @@ function buildDashboard(
     { name: 'Partenaires', value: Math.round((pCount / total) * 100) },
   ].filter(d => d.value > 0)
 
-  // Stats urgence / fenêtre horaire
-  const urgentCount   = orders.filter(o => o.urgency_level === 'urgent').length
-  const flexCount     = orders.filter(o => o.urgency_level === 'flexible').length
-  const totalPalCmd   = orders.reduce((s, o) => s + Number(o.total_pallets), 0)
-  const pendingPalCmd = orders.filter(o => o.status === 'pending').reduce((s, o) => s + Number(o.total_pallets), 0)
+  // Stats rapides — uniquement depuis orders (toujours peuplées)
+  const urgentCount    = orders.filter(o => o.urgency_level === 'urgent').length
+  const flexCount      = orders.filter(o => o.urgency_level === 'flexible').length
+  const standardCount  = orders.filter(o => o.urgency_level === 'standard').length
+  const totalPalCmd    = orders.reduce((s, o) => s + Number(o.total_pallets), 0)
+  const pendingPalCmd  = orders.filter(o => o.status === 'pending').reduce((s, o) => s + Number(o.total_pallets), 0)
+  const pendingCount   = orders.filter(o => o.status === 'pending').length
 
   const quickStats = [
-    { label: 'Palettes commandées',  value: String(totalPalCmd),   sub: `${pendingPalCmd} en attente`,           color: 'text-[#534AB7]' },
-    { label: 'Commandes urgentes',   value: String(urgentCount),   sub: `${flexCount} flexibles`,                color: urgentCount > 0 ? 'text-[#A32D2D]' : 'text-gray-900' },
-    { label: 'Quais libres (total)', value: String(warehouses.reduce((s, w) => s + Number(w.free_docks), 0)),
-      sub: `${warehouses.reduce((s, w) => s + Number(w.occupied_docks), 0)} occupés`,                           color: 'text-[#1D9E75]' },
-    { label: 'Pal. dispo. entrepôts', value: String(warehouses.reduce((s, w) => s + Number(w.available_pallets), 0)),
-      sub: `sur ${warehouses.reduce((s, w) => s + Number(w.total_pallets), 0)} total`,                          color: 'text-gray-900' },
+    {
+      label: 'Palettes commandées',
+      value: String(totalPalCmd),
+      sub:   `${pendingPalCmd} pal. en attente`,
+      color: 'text-[#534AB7]',
+    },
+    {
+      label: 'Commandes urgentes',
+      value: String(urgentCount),
+      sub:   `sur ${orders.length} commandes`,
+      color: urgentCount > 0 ? 'text-[#A32D2D]' : 'text-gray-700',
+    },
+    {
+      label: 'Commandes flexibles',
+      value: String(flexCount),
+      sub:   `${standardCount} standard`,
+      color: 'text-[#1D9E75]',
+    },
+    {
+      label: 'En attente de traitement',
+      value: String(pendingCount),
+      sub:   `${orders.length - pendingCount} traitée${orders.length - pendingCount !== 1 ? 's' : ''}`,
+      color: pendingCount > 0 ? 'text-[#854F0B]' : 'text-gray-700',
+    },
   ]
 
-  // Table — 5 commandes les plus récentes
-  const tableOrders = orders.slice(0, 5).map(o => ({
+  // Table — tri urgent → standard → flexible, puis date DESC, 12 lignes max
+  const urgencyOrder: Record<string, number> = { urgent: 0, standard: 1, flexible: 2 }
+  const sortedOrders = [...orders].sort((a, b) => {
+    const diff = (urgencyOrder[a.urgency_level] ?? 1) - (urgencyOrder[b.urgency_level] ?? 1)
+    return diff !== 0 ? diff : new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  })
+
+  const tableOrders = sortedOrders.slice(0, 12).map(o => ({
     id:      o.order_number,
     client:  o.company_name,
     dest:    o.delivery_address,
@@ -179,6 +205,7 @@ function buildDashboard(
     pallets: o.total_pallets,
     urgency: o.urgency_level,
     status:  o.status,
+    date:    new Date(o.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }),
   }))
 
   // Alertes dérivées
@@ -195,10 +222,6 @@ function buildDashboard(
   if (fillupCount > 0) {
     alerts.push({ type: 'info', text: `${fillupCount} commande${fillupCount > 1 ? 's' : ''} éligible${fillupCount > 1 ? 's' : ''} au remplissage de tournée` })
   }
-  const freeDocks = warehouses.reduce((s, w) => s + Number(w.free_docks), 0)
-  if (freeDocks > 0) {
-    alerts.push({ type: 'info', text: `${freeDocks} quai${freeDocks > 1 ? 's' : ''} libre${freeDocks > 1 ? 's' : ''} disponible${freeDocks > 1 ? 's' : ''}` })
-  }
   const highFlex = orders.filter(o => o.delivery_flexibility_score >= 3).length
   if (highFlex > 0) {
     alerts.push({ type: 'success', text: `${highFlex} commande${highFlex > 1 ? 's' : ''} à haute flexibilité — optimisation possible` })
@@ -207,7 +230,7 @@ function buildDashboard(
     alerts.push({ type: 'success', text: 'Aucune alerte — tout est nominal' })
   }
 
-  return { kpis, weekData, typeData, pieData, tableOrders, alerts, quickStats }
+  return { kpis, weekData, typeData, pieData, tableOrders, alerts, quickStats, urgentCount, flexCount }
 }
 
 // ─── Page ────────────────────────────────────────────────────────────────────
@@ -233,7 +256,7 @@ export default function AdminDashboardPage() {
   }, [])
 
   const safeUser = user ?? ({ id: '', name: '…', role: 'admin', email: '' } as User)
-  const { kpis, weekData, typeData, pieData, tableOrders, alerts, quickStats } = buildDashboard(orders, clients, warehouses)
+  const { kpis, weekData, typeData, pieData, tableOrders, alerts, quickStats, urgentCount, flexCount } = buildDashboard(orders, clients, warehouses)
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -345,17 +368,33 @@ export default function AdminDashboardPage() {
 
           {/* Table commandes */}
           <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-            <h3 className="text-sm font-medium text-gray-900 mb-4">Commandes récentes</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-medium text-gray-900">Commandes</h3>
+              <div className="flex gap-2 text-[10px]">
+                {urgentCount > 0 && (
+                  <span className="bg-red-50 text-[#A32D2D] px-2 py-0.5 rounded-full font-medium">{urgentCount} urgent{urgentCount > 1 ? 'es' : 'e'}</span>
+                )}
+                {flexCount > 0 && (
+                  <span className="bg-[#EAF3DE] text-[#3B6D11] px-2 py-0.5 rounded-full font-medium">{flexCount} flexible{flexCount > 1 ? 's' : ''}</span>
+                )}
+                <span className="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium">{orders.length} total</span>
+              </div>
+            </div>
             {!loading && tableOrders.length === 0 ? (
               <p className="text-sm text-gray-400 py-6 text-center">Aucune commande enregistrée</p>
             ) : (
               <>
-                <div className="grid grid-cols-[46px_1fr_1fr_90px_52px_60px_70px] gap-2 bg-gray-50 text-[10px] uppercase tracking-wide text-gray-400 px-2 py-1.5 rounded-lg mb-1">
-                  <div>N°</div><div>Client</div><div>Destination</div><div>Type</div><div>Pal.</div><div>Urgence</div><div>Statut</div>
+                <div className="grid grid-cols-[40px_1fr_1fr_88px_40px_62px_62px_60px] gap-2 bg-gray-50 text-[10px] uppercase tracking-wide text-gray-400 px-2 py-1.5 rounded-lg mb-1">
+                  <div>N°</div><div>Client</div><div>Destination</div><div>Type livr.</div><div>Pal.</div><div>Urgence</div><div>Statut</div><div>Date</div>
                 </div>
-                <div className="flex flex-col">
+                <div className="flex flex-col overflow-y-auto max-h-[380px]">
                   {tableOrders.map((o, i) => (
-                    <div key={i} className="grid grid-cols-[46px_1fr_1fr_90px_52px_60px_70px] gap-2 items-center px-2 py-2 text-xs border-b border-gray-50 last:border-0 hover:bg-gray-50/60">
+                    <div
+                      key={i}
+                      className={`grid grid-cols-[40px_1fr_1fr_88px_40px_62px_62px_60px] gap-2 items-center px-2 py-2 text-xs border-b border-gray-50 last:border-0 hover:bg-gray-50/60 ${
+                        o.urgency === 'urgent' ? 'border-l-2 border-l-[#A32D2D]' : ''
+                      }`}
+                    >
                       <div className="text-gray-400 font-mono text-[10px] truncate">{o.id.replace('ORD-', '')}</div>
                       <div className="font-medium text-gray-900 truncate">{o.client}</div>
                       <div className="text-gray-500 truncate">{o.dest}</div>
@@ -376,13 +415,14 @@ export default function AdminDashboardPage() {
                       </div>
                       <div>
                         <span className={`inline-flex px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
-                          o.status === 'pending'   ? 'bg-gray-100 text-gray-500' :
+                          o.status === 'pending'   ? 'bg-[#FAEEDA] text-[#854F0B]' :
                           o.status === 'delivered' ? 'bg-[#EAF3DE] text-[#3B6D11]' :
                           'bg-[#E6F1FB] text-[#185FA5]'
                         }`}>
                           {o.status}
                         </span>
                       </div>
+                      <div className="text-[10px] text-gray-400">{o.date}</div>
                     </div>
                   ))}
                 </div>
@@ -401,32 +441,36 @@ export default function AdminDashboardPage() {
               ) : (
                 <div className="flex flex-col gap-3">
                   {warehouses.map((w, i) => {
-                    const pTotal  = Number(w.total_pallets)
-                    const pUsed   = Number(w.used_pallets)
-                    const rate    = pTotal > 0 ? Math.round((pUsed / pTotal) * 100) : 0
-                    const dFree   = Number(w.free_docks)
-                    const dOccup  = Number(w.occupied_docks)
-                    const dTotal  = dFree + dOccup + Number(w.maintenance_docks)
+                    const pTotal = Number(w.total_pallets)
+                    const pUsed  = Number(w.used_pallets)
+                    const rate   = pTotal > 0 ? Math.round((pUsed / pTotal) * 100) : null
+                    const dFree  = Number(w.free_docks)
+                    const dTotal = dFree + Number(w.occupied_docks) + Number(w.maintenance_docks)
                     return (
-                      <div key={i}>
-                        <div className="flex items-center justify-between mb-0.5">
+                      <div key={i} className="pb-3 border-b border-gray-50 last:border-0 last:pb-0">
+                        <div className="flex items-center justify-between mb-1">
                           <span className="text-[11px] font-medium text-gray-800 truncate">{w.warehouse_name}</span>
                           <span className="text-[10px] text-gray-400 shrink-0 ml-2">{w.company_name}</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 bg-gray-100 rounded-full h-[4px]">
-                            <div
-                              className={`h-[4px] rounded-full ${rate > 85 ? 'bg-[#A32D2D]' : rate > 60 ? 'bg-[#BA7517]' : 'bg-[#1D9E75]'}`}
-                              style={{ width: `${rate}%` }}
-                            />
-                          </div>
-                          <span className="text-[10px] text-gray-500 shrink-0">{rate}%</span>
-                        </div>
-                        <div className="flex gap-2 mt-1 text-[9px] text-gray-400">
-                          <span>{pUsed}/{pTotal} pal.</span>
-                          {dTotal > 0 && <span>·</span>}
-                          {dTotal > 0 && <span>{dFree}/{dTotal} quais libres</span>}
-                        </div>
+                        {rate !== null ? (
+                          <>
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 bg-gray-100 rounded-full h-[4px]">
+                                <div
+                                  className={`h-[4px] rounded-full ${rate > 85 ? 'bg-[#A32D2D]' : rate > 60 ? 'bg-[#BA7517]' : 'bg-[#1D9E75]'}`}
+                                  style={{ width: `${rate}%` }}
+                                />
+                              </div>
+                              <span className="text-[10px] text-gray-500 shrink-0">{rate}%</span>
+                            </div>
+                            <div className="text-[9px] text-gray-400 mt-0.5">{pUsed} / {pTotal} palettes</div>
+                          </>
+                        ) : (
+                          <div className="text-[10px] text-gray-400">Aucun slot configuré</div>
+                        )}
+                        {dTotal > 0 && (
+                          <div className="text-[9px] text-gray-400 mt-0.5">{dFree} / {dTotal} quais libres</div>
+                        )}
                       </div>
                     )
                   })}
