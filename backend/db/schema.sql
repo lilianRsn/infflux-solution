@@ -101,7 +101,9 @@ CREATE TABLE orders (
   split_delivery_allowed BOOLEAN NOT NULL DEFAULT FALSE,
   partner_delivery_allowed BOOLEAN NOT NULL DEFAULT FALSE,
   status TEXT NOT NULL DEFAULT 'pending',
-  planning_status TEXT NOT NULL DEFAULT 'UNPLANNED' CHECK (planning_status IN ('UNPLANNED', 'PLANNED', 'BLOCKED', 'DELIVERED')),
+  planning_status TEXT NOT NULL DEFAULT 'UNPLANNED' CHECK (
+    planning_status IN ('UNPLANNED', 'PARTIALLY_PLANNED', 'PLANNED', 'BLOCKED', 'DELIVERED')
+  ),
   blocked_reason TEXT,
   planned_delivery_date DATE,
   total_pallets INTEGER NOT NULL DEFAULT 0,
@@ -115,6 +117,7 @@ CREATE TABLE orders (
   service_level TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
 
 CREATE TABLE order_lines (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -178,6 +181,7 @@ CREATE TABLE trucks (
 CREATE TABLE delivery_plans (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   planned_delivery_date DATE NOT NULL,
+  planned_time_window TEXT NOT NULL CHECK (planned_time_window IN ('morning', 'afternoon', 'full_day')),
   client_warehouse_id UUID NOT NULL REFERENCES client_warehouses(id) ON DELETE CASCADE,
   status TEXT NOT NULL DEFAULT 'DRAFT' CHECK (status IN ('DRAFT', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'BLOCKED')),
   total_pallets INTEGER NOT NULL DEFAULT 0 CHECK (total_pallets >= 0),
@@ -187,10 +191,13 @@ CREATE TABLE delivery_plans (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+
+
 CREATE TABLE delivery_plan_orders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   delivery_plan_id UUID NOT NULL REFERENCES delivery_plans(id) ON DELETE CASCADE,
-  order_id UUID NOT NULL UNIQUE REFERENCES orders(id) ON DELETE CASCADE
+  order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  allocated_pallets INTEGER NOT NULL CHECK (allocated_pallets > 0)
 );
 
 CREATE TABLE delivery_plan_trucks (
