@@ -23,6 +23,8 @@ export async function POST(request: NextRequest) {
 
     const { user, token } = await res.json();
 
+    const mappedRole = user.role === 'partner' ? 'partenaire' : user.role;
+
     const redirects: Record<string, string> = {
       admin: "/admin/dashboard",
       client: "/client/commande",
@@ -30,8 +32,8 @@ export async function POST(request: NextRequest) {
     };
 
     const response = NextResponse.json({
-      user,
-      redirect: redirects[user.role] || "/",
+      user: { ...user, role: mappedRole },
+      redirect: redirects[mappedRole] || "/",
     });
 
     response.cookies.set("infflux_token", token, {
