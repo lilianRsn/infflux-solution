@@ -44,36 +44,55 @@ Ceci s'applique à Express, Fastify, Jest, Vitest, Prisma, Mongoose, Zod, etc. T
 
 ### Commits — autorisation durable
 
-Cette section constitue une **autorisation permanente** : tu peux (et dois) créer des commits à chaque étape franchie, sans demander confirmation à chaque fois.
+Cette section est une **autorisation permanente** à commiter, **fréquemment et en petits incréments atomiques**, sans demander à chaque fois.
 
-**Ce qui compte comme une étape franchie** (= un commit) :
-- Une feature complète cohérente : endpoint (route + contrôleur + service + test) ; module d'optimisation livré avec ses tests ; scénario de simulation terminé ; brique de code mutualisée dans `shared/`.
-- Une passe de refactoring qui laisse le type-check et les tests verts.
-- Une correction de bug accompagnée d'un test de régression.
-- Une mise à jour de configuration significative (`package.json`, `tsconfig`, hooks, skills, sous-agents).
-- Un ajout/mise à jour de documentation projet (`CLAUDE.md`, `README.md`, spec).
+**Principe directeur** : préférer **plusieurs petits commits lisibles** à un gros commit fourre-tout. Un commit = un changement qui se décrit en une phrase. Dès qu'un bout de travail est cohérent et vert, commit.
 
-**Ce qui ne justifie PAS un commit séparé** :
-- Un fichier créé à moitié en plein milieu d'une feature — attends que l'étape soit cohérente.
-- Un simple renommage en cours de rédaction.
-- Un état qui ne compile pas ou dont les tests échouent (sauf si le commit est explicitement un WIP demandé).
+**Commit tout de suite (ne pas attendre la fin d'une feature)** :
+- Un nouveau module pur + ses tests (ex. `slot-payload.ts` + `slot-payload.test.ts`) → commit.
+- Un wrapper d'API / un helper partagé ajouté dans `shared/` → commit.
+- Un type ou une interface ajoutée/étendue qui compile → commit.
+- L'ajout d'un endpoint (route + contrôleur + service + test) → commit unique si petit, sinon un commit pour le service+test puis un pour le câblage route/contrôleur.
+- Un scénario de simulation nouveau ou étendu → commit.
+- Un refactor local qui laisse tests verts (renommage, extraction de fonction, split de fichier) → commit isolé.
+- Un fix de bug + son test de régression → commit.
+- Une maj de config (`package.json`, `tsconfig`, `docker-compose.yml`, `.claude/*`) → commit dédié, jamais mélangé avec du code métier.
+- Une maj de doc (`CLAUDE.md`, `README.md`, spec) → commit dédié.
+- Un scaffolding (nouvelle arborescence vide + fichiers de config initiaux) → commit avant de remplir.
 
-**Conditions avant de commiter** :
+**Découpage d'une tâche** : quand une demande utilisateur produit plusieurs artefacts (ex. nouveau module backend + wrapper côté simulateur + tests + maj runner), **n'attends pas le bout du bout**. Commit au fur et à mesure dès que chaque couche est verte isolément. Ordre typique :
+1. Types / modèles
+2. Logique pure + ses tests
+3. Wrappers I/O
+4. Câblage (runner, route, etc.)
+5. Maj doc / README
+
+→ 3 à 5 commits, pas 1.
+
+**Conditions minimales avant chaque commit** (non-négociables) :
 1. Le type-check passe (`tsc --noEmit` ou équivalent).
-2. Les tests pertinents passent (`npm test`).
-3. Le diff est lisible — pas de fichiers de debug oubliés, pas de `console.log` parasites.
+2. Les tests qui existaient avant passent toujours (ne pas casser un test vert).
+3. Les nouveaux tests du commit passent.
+4. Le diff staged est lisible : pas de fichiers de debug, pas de `console.log` oublié, pas de TODO/FIXME sans ticket.
+
+**Ce qui ne justifie PAS un commit** :
+- Un fichier créé à moitié qui ne compile pas.
+- Un état avec des tests rouges (sauf commit explicitement marqué WIP sur demande de l'utilisateur).
+- Un commit "clean-up" vide qui ne change rien d'observable.
 
 **Format du message** (style conventional, FR OK) :
-- Première ligne ≤ 70 car, impératif : `feat(merchant-sim): simulateur marchand initial avec stockage en cartons`.
-- Corps optionnel avec le *pourquoi*, pas le *quoi* (le diff montre le quoi).
-- Ajoute le trailer `Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>`.
-- Stage explicitement les fichiers concernés (`git add <paths>`), **pas** `git add -A`.
+- Première ligne ≤ 70 car, impératif : `feat(merchant-sim): wrapper warehouses-api typé`.
+- Préfixe : `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `build` selon la nature.
+- Scope utile : `merchant-sim`, `shared`, `backend-orders`, `docker`, `claude-config`, etc.
+- Corps optionnel (≥ 2 lignes) quand le *pourquoi* n'est pas évident.
+- Trailer : `Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>`.
+- Stage explicite des fichiers (`git add <paths>`), **pas** `git add -A` (risque d'embarquer `.env` ou binaires).
 
 **Ce que tu ne fais JAMAIS sans demande explicite** :
 - `git push` (quelle que soit la branche).
-- `git commit --amend` sur un commit déjà créé dans la session — crée un nouveau commit.
-- `git reset --hard`, `git push --force`, ou toute opération destructive.
-- Commiter des fichiers sensibles (`.env`, clés, secrets).
+- `git commit --amend` sur un commit déjà créé — crée un nouveau commit.
+- `git reset --hard`, `git push --force`, `git rebase`, ou toute opération destructive.
+- Commiter des fichiers sensibles (`.env`, clés, secrets, tokens).
 - Skipper un hook (`--no-verify`).
 
 ## Sous-agents disponibles
