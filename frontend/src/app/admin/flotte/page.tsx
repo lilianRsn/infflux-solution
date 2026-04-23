@@ -14,9 +14,10 @@ import type {
 // ─── Palette ─────────────────────────────────────────────────────────────────
 
 const TRUCK_STATUS_STYLE: Record<TruckStatus, { badge: string; dot: string; label: string }> = {
-  AVAILABLE:   { badge: 'bg-[#EAF3DE] text-[#3B6D11]',  dot: 'bg-[#1D9E75]',  label: 'Disponible'    },
-  IN_DELIVERY: { badge: 'bg-[#E6F1FB] text-[#185FA5]',  dot: 'bg-[#534AB7]',  label: 'En livraison'  },
-  MAINTENANCE: { badge: 'bg-[#FAEEDA] text-[#854F0B]',  dot: 'bg-[#BA7517]',  label: 'Maintenance'   },
+  AVAILABLE:   { badge: 'bg-[#EAF3DE] text-[#3B6D11]',  dot: 'bg-[#1D9E75]',  label: 'Disponible'     },
+  ON_ROUTE:    { badge: 'bg-[#E6F1FB] text-[#185FA5]',  dot: 'bg-[#534AB7]',  label: 'En route'       },
+  LOADING:     { badge: 'bg-[#EDE9FE] text-[#5B21B6]',  dot: 'bg-[#7C3AED]',  label: 'En chargement'  },
+  MAINTENANCE: { badge: 'bg-[#FAEEDA] text-[#854F0B]',  dot: 'bg-[#BA7517]',  label: 'Maintenance'    },
 }
 
 const PLAN_STATUS_STYLE: Record<PlanStatus, { badge: string; label: string }> = {
@@ -107,7 +108,8 @@ function TruckCard({
 
   return (
     <div className={`bg-white border rounded-xl p-4 transition-shadow hover:shadow-md ${
-      truck.status === 'IN_DELIVERY' ? 'border-[#534AB7]/30' :
+      truck.status === 'ON_ROUTE'    ? 'border-[#534AB7]/30' :
+      truck.status === 'LOADING'     ? 'border-[#7C3AED]/30' :
       truck.status === 'MAINTENANCE' ? 'border-[#BA7517]/30' :
       'border-gray-200'
     }`}>
@@ -116,13 +118,16 @@ function TruckCard({
         <div>
           <div className="flex items-center gap-2">
             <span className={`w-2 h-2 rounded-full ${s.dot}`} />
-            <span className="text-sm font-bold text-gray-900">{truck.code}</span>
+            <span className="text-sm font-bold text-gray-900">{truck.name}</span>
           </div>
-          <Badge className={`mt-1 ${s.badge}`}>{s.label}</Badge>
+          <div className="flex items-center gap-1.5 mt-1">
+            <Badge className={s.badge}>{s.label}</Badge>
+            <span className="text-[10px] text-gray-400 font-mono">{truck.license_plate}</span>
+          </div>
         </div>
         <div className="text-right">
           <div className="text-[11px] text-gray-400">Capacité max</div>
-          <div className="text-base font-bold text-[#534AB7]">{truck.max_pallets} pal.</div>
+          <div className="text-base font-bold text-[#534AB7]">{truck.max_palettes} pal.</div>
         </div>
       </div>
 
@@ -142,16 +147,32 @@ function TruckCard({
         )}
       </div>
 
-      {/* Barre (toujours pleine si IN_DELIVERY, 0 sinon — sans jointure plan) */}
+      {/* Route en cours + conducteur */}
+      {(truck.current_route || truck.driver_name) && (
+        <div className="bg-gray-50 rounded-lg px-2.5 py-2 mb-3 text-[10px]">
+          {truck.current_route && (
+            <div className="text-gray-700 font-medium truncate">{truck.current_route}</div>
+          )}
+          {truck.driver_name && (
+            <div className="text-gray-400 mt-0.5">{truck.driver_name}</div>
+          )}
+        </div>
+      )}
+
+      {/* Barre de remplissage */}
       <div className="mb-3">
         <div className="flex justify-between text-[10px] text-gray-400 mb-1">
-          <span>Utilisation</span>
-          <span>{truck.status === 'IN_DELIVERY' ? 'En course' : '—'}</span>
+          <span>Remplissage</span>
+          <span>{truck.fill_percent > 0 ? `${truck.fill_percent}%` : '—'}</span>
         </div>
         <CapacityBar
-          used={truck.status === 'IN_DELIVERY' ? truck.max_pallets : 0}
-          max={truck.max_pallets}
-          color={truck.status === 'IN_DELIVERY' ? 'bg-[#534AB7]' : 'bg-gray-200'}
+          used={truck.fill_percent}
+          max={100}
+          color={
+            truck.status === 'ON_ROUTE' ? 'bg-[#534AB7]' :
+            truck.status === 'LOADING'  ? 'bg-[#7C3AED]' :
+            'bg-gray-200'
+          }
         />
       </div>
 
@@ -175,7 +196,7 @@ function TruckCard({
             Remettre en service
           </button>
         )}
-        {truck.status === 'IN_DELIVERY' && (
+        {(truck.status === 'ON_ROUTE' || truck.status === 'LOADING') && (
           <div className="flex-1 text-center text-[10px] text-gray-400 py-1.5">
             Géré par plan de livraison
           </div>
@@ -188,18 +209,19 @@ function TruckCard({
 // ─── Formulaire ajout camion ──────────────────────────────────────────────────
 
 function AddTruckForm({ onAdd, onCancel }: { onAdd: (t: Truck) => void; onCancel: () => void }) {
-  const [form, setForm] = useState({ code: '', max_pallets: '', max_volume_m3: '', max_weight_kg: '' })
+  const [form, setForm] = useState({ name: '', license_plate: '', max_palettes: '', max_volume_m3: '', max_weight_kg: '' })
   const [busy, setBusy]   = useState(false)
   const [err,  setErr]    = useState<string | null>(null)
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.code || !form.max_pallets) { setErr('Code et palettes requis'); return }
+    if (!form.name || !form.license_plate) { setErr('Nom et immatriculation requis'); return }
     setBusy(true); setErr(null)
     try {
       const truck = await api.createTruck({
-        code:         form.code.toUpperCase(),
-        max_pallets:  Number(form.max_pallets),
+        name:          form.name,
+        license_plate: form.license_plate.toUpperCase(),
+        max_palettes:  form.max_palettes  ? Number(form.max_palettes)  : undefined,
         max_volume_m3: form.max_volume_m3 ? Number(form.max_volume_m3) : undefined,
         max_weight_kg: form.max_weight_kg ? Number(form.max_weight_kg) : undefined,
       })
@@ -225,10 +247,11 @@ function AddTruckForm({ onAdd, onCancel }: { onAdd: (t: Truck) => void; onCancel
     <form onSubmit={submit} className="bg-[#EEEDFE] border border-[#534AB7]/20 rounded-xl p-4 mb-4">
       <h4 className="text-[11px] font-semibold text-[#534AB7] mb-3 uppercase tracking-wide">Nouveau camion</h4>
       <div className="grid grid-cols-2 gap-2 mb-3">
-        {field('Code', 'code', 'T-04', true)}
-        {field('Palettes max', 'max_pallets', '33', true)}
-        {field('Volume (m³)', 'max_volume_m3', '82')}
-        {field('Poids max (kg)', 'max_weight_kg', '24000')}
+        {field('Nom', 'name', 'Camion T-05', true)}
+        {field('Immatriculation', 'license_plate', 'AB-105-CD', true)}
+        {field('Palettes max', 'max_palettes', '20')}
+        {field('Volume (m³)', 'max_volume_m3', '40')}
+        {field('Poids max (kg)', 'max_weight_kg', '19000')}
       </div>
       {err && <p className="text-[10px] text-[#A32D2D] mb-2">{err}</p>}
       <div className="flex gap-2">
@@ -366,18 +389,18 @@ function PlanRow({
                   <h4 className="text-[10px] uppercase tracking-wide text-gray-400 mb-2">Camions assignés</h4>
                   <div className="grid grid-cols-1 gap-2">
                     {detail.trucks.map(t => {
-                      const fillPct = t.max_pallets > 0 ? Math.round((t.assigned_pallets / t.max_pallets) * 100) : 0
+                      const fillPct = t.max_palettes > 0 ? Math.round((t.assigned_pallets / t.max_palettes) * 100) : 0
                       const dock = detail.dock_assignments.find(d => d.truck_id === t.id)
                       return (
                         <div key={t.id} className="bg-white rounded-lg p-3 border border-gray-100">
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
-                              <span className="text-[11px] font-bold text-gray-900">{t.code}</span>
+                              <span className="text-[11px] font-bold text-gray-900">{t.name}</span>
                               {dock && <span className="text-[10px] text-gray-400">→ Quai {dock.code} ({dock.side})</span>}
                             </div>
-                            <span className="text-[10px] font-semibold text-[#534AB7]">{t.assigned_pallets} / {t.max_pallets} pal.</span>
+                            <span className="text-[10px] font-semibold text-[#534AB7]">{t.assigned_pallets} / {t.max_palettes} pal.</span>
                           </div>
-                          <CapacityBar used={t.assigned_pallets} max={t.max_pallets} color="bg-[#534AB7]" />
+                          <CapacityBar used={t.assigned_pallets} max={t.max_palettes} color="bg-[#534AB7]" />
                         </div>
                       )
                     })}
@@ -512,9 +535,9 @@ export default function AdminFlottePage() {
 
   // Stats
   const available   = trucks.filter(t => t.status === 'AVAILABLE').length
-  const inDelivery  = trucks.filter(t => t.status === 'IN_DELIVERY').length
+  const inDelivery  = trucks.filter(t => t.status === 'ON_ROUTE' || t.status === 'LOADING').length
   const maintenance = trucks.filter(t => t.status === 'MAINTENANCE').length
-  const maxPallets  = trucks.reduce((s, t) => s + Number(t.max_pallets), 0)
+  const maxPallets  = trucks.reduce((s, t) => s + Number(t.max_palettes), 0)
 
   const filteredPlans = plans.filter(p => {
     if (planFilter === 'active')  return ['IN_PROGRESS', 'CONFIRMED'].includes(p.status)

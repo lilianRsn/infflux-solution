@@ -1,14 +1,19 @@
-export type TruckStatus = 'AVAILABLE' | 'IN_DELIVERY' | 'MAINTENANCE'
+export type TruckStatus = 'AVAILABLE' | 'ON_ROUTE' | 'LOADING' | 'MAINTENANCE'
 export type PlanStatus  = 'DRAFT' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'BLOCKED'
 export type TimeWindow  = 'morning' | 'afternoon' | 'full_day'
 
 export interface Truck {
   id: string
-  code: string
-  max_pallets: number
-  max_volume_m3: number
+  name: string
+  license_plate: string
+  max_palettes: number
   max_weight_kg: number
+  max_volume_m3: number
   status: TruckStatus
+  current_route: string | null
+  fill_percent: number
+  driver_name: string | null
+  notes: string | null
   created_at: string
   updated_at: string
 }
@@ -44,8 +49,9 @@ export interface PlanOrder {
 
 export interface PlanTruck {
   id: string
-  code: string
-  max_pallets: number
+  name: string
+  license_plate: string
+  max_palettes: number
   max_volume_m3: number
   max_weight_kg: number
   status: TruckStatus

@@ -170,11 +170,16 @@ CREATE TABLE parking_zones (
 
 CREATE TABLE trucks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  code TEXT NOT NULL UNIQUE,
-  max_pallets INTEGER NOT NULL CHECK (max_pallets > 0),
-  max_volume_m3 NUMERIC(10,2) NOT NULL DEFAULT 0 CHECK (max_volume_m3 >= 0),
-  max_weight_kg NUMERIC(10,2) NOT NULL DEFAULT 0 CHECK (max_weight_kg >= 0),
-  status TEXT NOT NULL DEFAULT 'AVAILABLE' CHECK (status IN ('AVAILABLE', 'IN_DELIVERY', 'MAINTENANCE')),
+  name TEXT NOT NULL,
+  license_plate TEXT NOT NULL UNIQUE,
+  max_palettes INTEGER NOT NULL DEFAULT 20 CHECK (max_palettes > 0),
+  max_weight_kg NUMERIC(10,2) NOT NULL DEFAULT 20000 CHECK (max_weight_kg >= 0),
+  max_volume_m3 NUMERIC(10,2) NOT NULL DEFAULT 40.0 CHECK (max_volume_m3 >= 0),
+  status TEXT NOT NULL DEFAULT 'AVAILABLE' CHECK (status IN ('AVAILABLE', 'ON_ROUTE', 'LOADING', 'MAINTENANCE')),
+  current_route TEXT,
+  fill_percent INTEGER DEFAULT 0 CHECK (fill_percent >= 0 AND fill_percent <= 100),
+  driver_name TEXT,
+  notes TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

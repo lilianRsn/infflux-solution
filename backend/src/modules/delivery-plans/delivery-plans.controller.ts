@@ -16,10 +16,10 @@ export async function generateDeliveryPlansHandler(
     const result = await generateDeliveryPlans();
     return res.status(201).json(result);
   } catch (error) {
+    console.error("[generate] ERROR:", error);
     if (error instanceof AppError) {
       return res.status(error.statusCode).json({ message: error.message });
     }
-
     return res.status(500).json({
       message: error instanceof Error ? error.message : "Internal server error"
     });

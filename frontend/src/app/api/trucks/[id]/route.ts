@@ -1,6 +1,12 @@
 import { NextRequest } from 'next/server'
 import { proxyToBackend } from '@/lib/proxy'
 
-export function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+type Ctx = { params: Promise<{ id: string }> }
+
+export function PATCH(req: NextRequest, { params }: Ctx) {
+  return params.then(({ id }) => proxyToBackend(req, `/api/trucks/${id}`))
+}
+
+export function DELETE(req: NextRequest, { params }: Ctx) {
   return params.then(({ id }) => proxyToBackend(req, `/api/trucks/${id}`))
 }
