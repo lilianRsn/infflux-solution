@@ -41,8 +41,13 @@ Le simulateur :
 1. Enregistre le marchand (`POST /api/auth/register`, idempotent — 409 ignoré).
 2. Se connecte (`POST /api/auth/login`) et cache le JWT.
 3. Construit un stockage initial (allées → rangées → cartons) à partir d'un scénario seedé.
-4. À chaque tick : consomme aléatoirement des cartons, détecte les produits sous seuil, envoie une commande (`POST /api/orders`) en convertissant cartons → palettes.
-5. Logge stock initial, stock final et résumé.
+4. **Déclare ce stock au backend** : `POST /api/client-warehouses` → `/floors` → `/aisles` → `/api/storage-slots`. Le mapping `rangee_id → slot_id` est conservé en mémoire.
+5. À chaque tick :
+   - Consomme aléatoirement des cartons d'un produit → **`PATCH /api/storage-slots/{id}`** pour chaque rangée affectée (maj `used_pallets`, `used_volume`, `status`).
+   - Détecte les produits sous seuil → construit une commande **aléatoire** (sous-ensemble aléatoire des produits manquants, quantités aléatoires bornées, `time_window` et `urgency_level` tirés dans une pool) → `POST /api/orders`.
+6. Logge stock initial, stock final, rapport (commandes envoyées/OK/KO, slots synchronisés).
+
+> ⚠️ Le flow n'est **pas** idempotent : relancer crée un 2ᵉ entrepôt côté backend. Pour un run propre, `docker compose down -v` avant.
 
 ## Unité métier
 

@@ -37,23 +37,41 @@ export function buildStock(rng: Rng, params: BuildStockParams): StockMarchand {
   };
 }
 
+export interface ConsommationResult {
+  cartons_consommes: number;
+  rangees_modifiees: string[];
+}
+
 export function consommerCartons(
   stock: StockMarchand,
   produit_id: string,
   cartonsAConsommer: number
-): number {
+): ConsommationResult {
   let restant = cartonsAConsommer;
+  const rangeesModifiees = new Set<string>();
+
   for (const allee of stock.allees) {
     for (const rangee of allee.rangees) {
+      let modifieeIci = false;
       for (const carton of rangee.cartons) {
-        if (restant <= 0) return cartonsAConsommer;
+        if (restant <= 0) break;
         if (carton.produit_id !== produit_id) continue;
         const pris = Math.min(carton.quantite_cartons, restant);
-        carton.quantite_cartons -= pris;
-        restant -= pris;
+        if (pris > 0) {
+          carton.quantite_cartons -= pris;
+          restant -= pris;
+          modifieeIci = true;
+        }
       }
-      rangee.cartons = rangee.cartons.filter((c) => c.quantite_cartons > 0);
+      if (modifieeIci) {
+        rangee.cartons = rangee.cartons.filter((c) => c.quantite_cartons > 0);
+        rangeesModifiees.add(rangee.rangee_id);
+      }
     }
   }
-  return cartonsAConsommer - restant;
+
+  return {
+    cartons_consommes: cartonsAConsommer - restant,
+    rangees_modifiees: [...rangeesModifiees]
+  };
 }

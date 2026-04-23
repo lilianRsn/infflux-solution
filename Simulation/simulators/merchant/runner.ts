@@ -10,6 +10,9 @@ import { buildStock, consommerCartons } from "./storage/build";
 import { totalCartonsParProduit } from "./storage/convert";
 import { snapshotStock } from "./behaviors/snapshot-stock";
 import { buildCreateOrderBody, productsBelowThreshold } from "./behaviors/submit-order";
+import { registerStock } from "./warehouse/register-stock";
+import { syncSlot } from "./warehouse/sync-slot";
+import { StockMarchand, Rangee } from "./storage/model";
 
 export interface RunReport {
   scenario: string;
@@ -17,6 +20,7 @@ export interface RunReport {
   commandes_envoyees: number;
   commandes_succes: number;
   commandes_echecs: number;
+  slots_synchronises: number;
   duree_ms: number;
 }
 
@@ -30,6 +34,7 @@ export async function runMerchant(scenario: MerchantScenario): Promise<RunReport
   let commandesEnvoyees = 0;
   let commandesSucces = 0;
   let commandesEchecs = 0;
+  let slotsSynchronises = 0;
 
   log.info("boot", { backend: env.backendUrl, seed: scenario.seed });
 
@@ -55,6 +60,14 @@ export async function runMerchant(scenario: MerchantScenario): Promise<RunReport
   const stock = buildStock(rng, scenario.stock_init);
   log.info("stock_initial", { snapshot: snapshotStock(stock) });
 
+  const registration = await registerStock(client, stock, scenario.warehouse);
+  log.info("stock_registered", {
+    warehouse_id: registration.warehouse_id,
+    floor_id: registration.floor_id,
+    aisles: registration.aisle_ids,
+    slots: registration.slot_ids
+  });
+
   await runTicks({
     nbTicks: scenario.nb_ticks,
     tickRateMs: scenario.tick_rate_ms,
@@ -69,8 +82,34 @@ export async function runMerchant(scenario: MerchantScenario): Promise<RunReport
             scenario.cartons_consommes_par_tick_min,
             scenario.cartons_consommes_par_tick_max
           );
-          const pris = consommerCartons(stock, produit, qte);
-          tlog.info("consommation", { produit_id: produit, cartons_consommes: pris });
+          const res = consommerCartons(stock, produit, qte);
+          tlog.info("consommation", {
+            produit_id: produit,
+            cartons_consommes: res.cartons_consommes,
+            rangees_modifiees: res.rangees_modifiees
+          });
+
+          for (const rangeeId of res.rangees_modifiees) {
+            const rangee = findRangee(stock, rangeeId);
+            const slotId = registration.slot_ids[rangeeId];
+            if (!rangee || !slotId) continue;
+            try {
+              await syncSlot(client, {
+                stock,
+                rangee,
+                slotId,
+                m3_par_carton: scenario.warehouse.m3_par_carton
+              });
+              slotsSynchronises++;
+              tlog.info("slot_synchronise", { rangee_id: rangeeId, slot_id: slotId });
+            } catch (err) {
+              tlog.error("slot_sync_erreur", {
+                rangee_id: rangeeId,
+                slot_id: slotId,
+                message: err instanceof Error ? err.message : String(err)
+              });
+            }
+          }
         }
       }
 
@@ -86,7 +125,8 @@ export async function runMerchant(scenario: MerchantScenario): Promise<RunReport
         identity: scenario.identity,
         destination: scenario.destination,
         policy: scenario.order_policy,
-        now: new Date()
+        now: new Date(),
+        rng
       });
 
       if (!body) {
@@ -104,7 +144,10 @@ export async function runMerchant(scenario: MerchantScenario): Promise<RunReport
         tlog.info("commande_envoyee", {
           order_id: res.order.order_id,
           order_number: res.order.order_number,
-          lignes: body.order_lines
+          lignes: body.order_lines,
+          delivery_time_window: body.delivery_need.delivery_time_window,
+          urgency_level: body.delivery_need.urgency_level,
+          requested_delivery_date: body.delivery_need.requested_delivery_date
         });
       } catch (err) {
         commandesEchecs++;
@@ -123,6 +166,7 @@ export async function runMerchant(scenario: MerchantScenario): Promise<RunReport
     commandes_envoyees: commandesEnvoyees,
     commandes_succes: commandesSucces,
     commandes_echecs: commandesEchecs,
+    slots_synchronises: slotsSynchronises,
     duree_ms: Date.now() - start
   };
 
@@ -130,4 +174,12 @@ export async function runMerchant(scenario: MerchantScenario): Promise<RunReport
   log.info("stock_final", { snapshot: snapshotStock(stock) });
 
   return report;
+}
+
+function findRangee(stock: StockMarchand, rangeeId: string): Rangee | undefined {
+  for (const allee of stock.allees) {
+    const r = allee.rangees.find((x) => x.rangee_id === rangeeId);
+    if (r) return r;
+  }
+  return undefined;
 }

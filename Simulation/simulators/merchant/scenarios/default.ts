@@ -1,5 +1,6 @@
 import { BuildStockParams } from "../storage/build";
 import { OrderPolicy, MerchantIdentity, DeliveryDestination } from "../behaviors/submit-order";
+import { WarehouseRegistrationParams } from "../warehouse/register-stock";
 
 export interface MerchantScenario {
   nom: string;
@@ -16,6 +17,7 @@ export interface MerchantScenario {
   identity: MerchantIdentity;
   destination: DeliveryDestination;
   stock_init: BuildStockParams;
+  warehouse: WarehouseRegistrationParams;
   order_policy: OrderPolicy;
 }
 
@@ -53,12 +55,24 @@ export const defaultScenario: MerchantScenario = {
     catalogue: ["PROD_001", "PROD_002", "PROD_003", "PROD_004"],
     taux_remplissage_initial: 0.6
   },
+  warehouse: {
+    warehouse_name: "Entrepot Marchand A",
+    warehouse_address: "12 rue Exemple, Paris",
+    floor_label: "RDC",
+    floor_level: 1,
+    slot_side: "LEFT",
+    m3_par_carton: 0.05
+  },
   order_policy: {
     seuil_commande_cartons: 20,
     quantite_cible_cartons: 100,
-    horizon_livraison_jours: 5,
-    time_window: "morning",
-    urgency_level: "flexible",
+    facteur_quantite_max: 1.5,
+    min_produits_par_commande: 1,
+    max_produits_par_commande: 3,
+    horizon_livraison_jours_min: 3,
+    horizon_livraison_jours_max: 8,
+    time_windows_pool: ["morning", "afternoon", "full_day"],
+    urgency_levels_pool: ["flexible", "standard"],
     grouped_delivery_allowed: true,
     partner_delivery_allowed: true,
     can_receive_early: true,

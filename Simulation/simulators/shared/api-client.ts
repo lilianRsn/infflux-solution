@@ -36,6 +36,10 @@ export class ApiClient {
     return this.request<T>("POST", path, body);
   }
 
+  async patch<T>(path: string, body: unknown): Promise<T> {
+    return this.request<T>("PATCH", path, body);
+  }
+
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const url = `${this.opts.baseUrl}${path}`;
     const headers: Record<string, string> = { "Content-Type": "application/json" };
