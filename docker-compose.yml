@@ -50,7 +50,7 @@ services:
       MERCHANT_BILLING_ADDRESS: "12 rue Exemple, Paris"
       MERCHANT_CONTACT_NAME: Jean Dupont
       MERCHANT_CONTACT_PHONE: "0600000000"
-    restart: "no"
+    restart: always
 
   pgadmin:
     image: dpage/pgadmin4

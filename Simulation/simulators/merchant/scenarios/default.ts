@@ -22,13 +22,13 @@ export interface MerchantScenario {
 }
 
 export const defaultScenario: MerchantScenario = {
-  nom: "default",
-  seed: 42,
-  nb_ticks: 15,
-  tick_rate_ms: 1500,
-  proba_consommation_par_tick: 0.7,
-  cartons_consommes_par_tick_min: 1,
-  cartons_consommes_par_tick_max: 6,
+  nom: "continuous",
+  seed: Math.floor(Math.random() * 1000000),
+  nb_ticks: Infinity,
+  tick_rate_ms: 15000,
+  proba_consommation_par_tick: 0.8,
+  cartons_consommes_par_tick_min: 2,
+  cartons_consommes_par_tick_max: 10,
   credentials: {
     email: process.env.MERCHANT_EMAIL ?? "marchand-a@example.com",
     password: process.env.MERCHANT_PASSWORD ?? "Pass1234!"
@@ -52,27 +52,19 @@ export const defaultScenario: MerchantScenario = {
     nb_rangees_par_allee: 4,
     capacite_cartons_par_rangee: 50,
     cartons_par_palette: 32,
-    catalogue: ["PROD_001", "PROD_002", "PROD_003", "PROD_004"],
+    catalogue: ["PROD_001", "PROD_002", "PROD_003", "PROD_004", "PROD_005", "PROD_006"],
     taux_remplissage_initial: 0.6
   },
-  warehouse: {
-    warehouse_name: "Entrepot Marchand A",
-    warehouse_address: "12 rue Exemple, Paris",
-    floor_label: "RDC",
-    floor_level: 1,
-    slot_side: "LEFT",
-    m3_par_carton: 0.05
-  },
   order_policy: {
-    seuil_commande_cartons: 90,
-    quantite_cible_cartons: 150,
-    facteur_quantite_max: 1.5,
+    seuil_commande_cartons: 110,
+    quantite_cible_cartons: 160,
+    facteur_quantite_max: 2.0,
     min_produits_par_commande: 1,
-    max_produits_par_commande: 3,
-    horizon_livraison_jours_min: 3,
-    horizon_livraison_jours_max: 8,
+    max_produits_par_commande: 4,
+    horizon_livraison_jours_min: 2,
+    horizon_livraison_jours_max: 10,
     time_windows_pool: ["morning", "afternoon", "full_day"],
-    urgency_levels_pool: ["flexible", "standard"],
+    urgency_levels_pool: ["flexible", "standard", "urgent"],
     grouped_delivery_allowed: true,
     partner_delivery_allowed: true,
     can_receive_early: true,
