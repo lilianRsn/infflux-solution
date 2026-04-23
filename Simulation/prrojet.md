@@ -1,110 +1,137 @@
-Voici un texte clair et présentable que tu peux utiliser tel quel (README, dossier ou pitch) pour expliquer **la partie simulation du projet** :
+# Plateforme logistique intelligente avec simulation et gestion avancée du stockage
+
+## Présentation du projet
+
+Ce projet consiste à concevoir une plateforme logistique intelligente permettant d’optimiser la gestion des livraisons en combinant flotte interne et transporteurs partenaires.  
+L’objectif est de réduire les coûts, améliorer le taux de remplissage des camions et proposer des solutions de livraison plus flexibles.
+
+La plateforme repose sur une architecture centralisée où un backend pilote l’ensemble des opérations :
+- gestion des commandes,
+- gestion des stocks,
+- planification des tournées,
+- intégration des partenaires,
+- optimisation des décisions logistiques.
+
+Afin de rendre le système autonome et démontrable, des simulateurs reproduisent le comportement des différents acteurs (clients, entrepôts, partenaires).
 
 ---
 
-## Simulation du système logistique
+## Simulation du système
 
-Dans le cadre du projet, nous avons mis en place un système de **simulation automatisée** permettant de reproduire le fonctionnement réel d’une plateforme logistique, sans dépendre de véritables utilisateurs ou partenaires externes.
+Le système intègre des simulations représentant :
+- des clients (marchands),
+- des entrepôts,
+- des partenaires transporteurs.
 
-L’objectif de ces simulations est double :
+Ces simulateurs interagissent uniquement avec le backend via des appels API, reproduisant fidèlement un environnement réel.
 
-* **générer des flux réalistes** (commandes, tournées, traitements logistiques),
-* **alimenter le moteur d’optimisation** afin de démontrer la pertinence des décisions prises par le système.
+Ils permettent de générer :
+- des commandes,
+- des mises à jour de stock,
+- des propositions de transport,
 
----
-
-### Principe général
-
-Les simulations sont conçues comme des **agents indépendants** (ou “bots”) représentant les différents acteurs du système :
-
-* un **marchand (client)** qui passe des commandes,
-* un **entrepôt** qui prépare et valide les expéditions,
-* un **partenaire transporteur** qui propose de la capacité de transport.
-
-Ces agents ne communiquent **jamais directement entre eux**.
-Ils interagissent uniquement avec le backend de l’application via des appels API, exactement comme le feraient de vrais utilisateurs.
+et ainsi alimenter en continu le moteur d’optimisation.
 
 ---
 
-### Simulation du marchand (client)
+## Nouvelle fonctionnalité : gestion avancée du stockage côté marchand
 
-Le simulateur de marchand reproduit le comportement d’un client professionnel qui effectue des commandes de marchandises.
+Une évolution importante du projet introduit une logique de **stockage intelligent côté client (marchand)**.
 
-Il génère automatiquement des demandes de livraison avec des paramètres variables :
+### Objectif
 
-* localisation de livraison,
-* volume et poids,
-* type de livraison (standard, groupée, urgente),
-* date souhaitée.
-
-Ces commandes sont envoyées au backend, qui les enregistre puis déclenche leur traitement logistique.
+Permettre aux clients :
+- de choisir où leurs marchandises sont stockées,
+- d’optimiser leur logistique en fonction de leur capacité de stockage,
+- de mieux anticiper leurs livraisons.
 
 ---
 
-### Simulation de l’entrepôt
+## Fonctionnement
 
-Le simulateur d’entrepôt représente le processus de préparation des commandes.
+### Choix du stockage
 
-Son rôle est de :
-
-* consulter les commandes en attente,
-* simuler un délai de préparation,
-* mettre à jour leur statut (ex : “prête à être expédiée”).
-
-Il peut également simuler la gestion des stocks en mettant à jour les quantités disponibles.
-
-Cette étape permet de reproduire le flux réel :
-**commande → préparation → expédition**.
+Le client ne se contente plus de passer une commande.  
+Il peut désormais :
+- sélectionner un entrepôt ou point de stockage,
+- décider de stocker une partie des marchandises en avance,
+- adapter ses livraisons en fonction de ses besoins réels.
 
 ---
 
-### Simulation des partenaires transporteurs
+### Capacité de stockage client
 
-Le simulateur de partenaire modélise des transporteurs externes mettant à disposition de la capacité dans leurs camions.
+Chaque client possède une **capacité de stockage propre**, définie dans son profil.
 
-Il effectue plusieurs actions :
+Cette information est essentielle pour :
+- proposer des livraisons groupées,
+- éviter les surcharges,
+- lisser les flux logistiques.
 
-* déclaration de tournées (trajet, date, capacité disponible),
-* réception des propositions de transport générées par le backend,
-* acceptation ou refus de ces propositions selon une logique simple (prix, détour, capacité restante).
-
-Ce mécanisme permet de simuler un écosystème de partenaires dynamique et réaliste.
-
----
-
-### Rôle central du backend
-
-Le backend joue un rôle central dans le système :
-
-* il reçoit les données issues des simulations,
-* il calcule les distances et temps de trajet via l’API de Google Maps Platform,
-* il exécute un algorithme d’optimisation pour affecter chaque commande à la meilleure option (flotte interne ou partenaire),
-* il génère des propositions de transport,
-* il met à jour les états des commandes en temps réel.
-
-Ainsi, toute la logique métier est centralisée, garantissant une architecture cohérente et évolutive.
+Le système prend en compte :
+- la capacité maximale,
+- le stock actuellement présent,
+- la fréquence des livraisons.
 
 ---
 
-### Intérêt pour la démonstration
+### Organisation du stockage en entrepôt
 
-Ce système de simulation permet de construire un **scénario de démonstration complet et automatisé**, dans lequel :
+Côté entrepôt, les marchandises sont organisées de manière structurée :
 
-1. des commandes sont générées,
-2. elles sont préparées,
-3. des tournées partenaires sont proposées,
-4. des décisions d’affectation sont prises automatiquement.
+- découpage en zones de stockage,
+- attribution de rangées (emplacements physiques),
+- association des produits à des emplacements précis.
 
-Il devient alors possible de visualiser :
+Chaque produit stocké possède donc :
+- un entrepôt d’affectation,
+- une zone,
+- une rangée ou emplacement.
 
-* l’utilisation des ressources,
-* l’intégration des partenaires,
-* et les gains économiques générés.
+Cela permet :
+- une traçabilité fine,
+- une préparation rapide des commandes,
+- une optimisation des déplacements internes.
 
 ---
 
-### Conclusion
+### Impact sur la logistique
 
-La mise en place de ces simulations permet de transformer le projet en une **plateforme autonome**, capable de démontrer de manière concrète et dynamique la valeur du système d’optimisation logistique, sans dépendre d’interactions humaines réelles.
+Cette gestion du stockage influence directement le système global :
 
+- amélioration du groupage des commandes,
+- réduction des livraisons urgentes,
+- meilleure anticipation des flux,
+- optimisation des tournées.
 
+Le moteur d’optimisation utilise ces données pour décider :
+- quand livrer,
+- où livrer,
+- et avec quel transporteur.
+
+---
+
+## Rôle du backend
+
+Le backend centralise toutes les informations :
+- commandes clients,
+- capacités de stockage,
+- états des entrepôts,
+- tournées partenaires.
+
+Il exploite ces données pour :
+- calculer les meilleures stratégies logistiques,
+- proposer des affectations optimales,
+- ajuster dynamiquement les décisions.
+
+---
+
+## Conclusion
+
+Grâce à l’ajout de la gestion du stockage côté client, la plateforme ne se limite plus à la livraison.  
+Elle devient un véritable outil de **pilotage logistique global**, capable d’anticiper, optimiser et orchestrer l’ensemble de la chaîne d’approvisionnement.
+
+Cette approche permet de démontrer concrètement :
+- la réduction des coûts,
+- l’amélioration de l’efficacité,
+- et la création de valeur grâce à l’intelligence logistique.

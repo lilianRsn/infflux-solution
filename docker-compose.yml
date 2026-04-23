@@ -1,7 +1,6 @@
 services:
   db:
     image: postgres:16
-    container_name: infflux_postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: infflux_hackathon
@@ -9,7 +8,7 @@ services:
       POSTGRES_PASSWORD: postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./db/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+      - ./backend/db/schema.sql:/docker-entrypoint-initdb.d/schema.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d infflux_hackathon"]
       interval: 5s
@@ -18,19 +17,40 @@ services:
 
   api:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
-    container_name: infflux_api
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
     environment:
-      PORT: 3000
+      PORT: 3001
       DATABASE_URL: postgresql://postgres:postgres@db:5432/infflux_hackathon
       JWT_SECRET: super_secret_jwt_key_change_me
     ports:
-      - "3000:3000"
+      - "3001:3001"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  merchant-sim:
+    build:
+      context: ./Simulation/simulators
+      dockerfile: Dockerfile
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      BACKEND_URL: http://api:3001
+      MERCHANT_EMAIL: marchand-a@example.com
+      MERCHANT_PASSWORD: Pass1234!
+      MERCHANT_COMPANY_NAME: Marchand A
+      MERCHANT_BILLING_ADDRESS: "12 rue Exemple, Paris"
+      MERCHANT_CONTACT_NAME: Jean Dupont
+      MERCHANT_CONTACT_PHONE: "0600000000"
+    restart: always
 
   pgadmin:
     image: dpage/pgadmin4
@@ -39,6 +59,9 @@ services:
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@admin.com
       PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_SERVER_JSON_FILE: /pgadmin4/servers.json
+    volumes:
+      - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
     ports:
       - "5050:80"
     depends_on:
