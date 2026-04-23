@@ -64,8 +64,8 @@ export const defaultScenario: MerchantScenario = {
     m3_par_carton: 0.05
   },
   order_policy: {
-    seuil_commande_cartons: 20,
-    quantite_cible_cartons: 100,
+    seuil_commande_cartons: 90,
+    quantite_cible_cartons: 150,
     facteur_quantite_max: 1.5,
     min_produits_par_commande: 1,
     max_produits_par_commande: 3,
