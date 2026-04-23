@@ -52,5 +52,20 @@ services:
       MERCHANT_CONTACT_PHONE: "0600000000"
     restart: "no"
 
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: infflux_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_SERVER_JSON_FILE: /pgadmin4/servers.json
+    volumes:
+      - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+
 volumes:
   postgres_data:
