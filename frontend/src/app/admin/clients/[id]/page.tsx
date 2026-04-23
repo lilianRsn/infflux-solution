@@ -14,13 +14,17 @@ export default async function AdminClientDetailPage({ params }: PageProps) {
   if (user.role !== 'admin') redirect('/')
 
   let client = null
-  let warehouses = []
+  let warehouses: any[] = []
+  let orders: any[] = []
 
   try {
-    // We don't have a direct get client by ID, so we fetch all and find
-    const clients = await fetchBackend<any[]>('/api/users/clients')
-    client = clients.find(c => String(c.id) === id)
-    
+    const [clients, allOrders] = await Promise.all([
+      fetchBackend<any[]>('/api/users/clients'),
+      fetchBackend<any[]>('/api/orders'),
+    ])
+    client = clients.find((c) => String(c.id) === id)
+    orders = allOrders.filter((o) => String(o.customer_id) === id)
+
     if (client) {
       warehouses = await fetchBackend<any[]>(`/api/client-warehouses/${id}`)
     }
@@ -32,12 +36,12 @@ export default async function AdminClientDetailPage({ params }: PageProps) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-xl font-bold">Client introuvable</h1>
-          <p className="mt-2 text-slate-500">L'identifiant {id} ne correspond à aucun client.</p>
+          <h1 className="text-xl font-semibold text-slate-900">Client introuvable</h1>
+          <p className="mt-2 text-slate-500 text-sm">L'identifiant {id} ne correspond à aucun client.</p>
         </div>
       </div>
     )
   }
 
-  return <ClientDetailContent client={client} warehouses={warehouses} adminUser={user} />
+  return <ClientDetailContent client={client} warehouses={warehouses} orders={orders} adminUser={user} />
 }

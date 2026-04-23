@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Plus, Trash2, Minus, ChevronDown, ChevronRight, Truck, ParkingCircle as Parking } from 'lucide-react'
 import type { WarehouseConfig, FloorConfig, AisleConfig, ExteriorConfig } from '@/lib/warehouse-store'
 import { newWarehouseId, newFloor, newAisle, saveConfig } from '@/lib/warehouse-store'
-import { createWarehouse as createWarehouseAction } from '@/app/actions/warehouse'
+import { createWarehouse as createWarehouseAction, syncWarehouseLayout } from '@/app/actions/warehouse'
 import BuilderPreview from './BuilderPreview'
 
 const INITIAL_CONFIG = {
@@ -97,25 +97,29 @@ export default function WarehouseBuilder() {
     if (!validate()) return
     setIsSubmitting(true)
     try {
-      // 1. Create on backend
+      // 1. Create warehouse metadata in backend
       const backendWh = await createWarehouseAction({
         name: config.name,
         address: config.address,
-        floors_count: config.floors.length
+        floors_count: config.floors.length,
       })
 
-      // 2. Save full config in localStorage for detailed local view (hackathon mode)
-      const cfg: WarehouseConfig = { 
-        ...config, 
-        id: backendWh.id, 
-        createdAt: new Date().toISOString() 
+      const cfg: WarehouseConfig = {
+        ...config,
+        id: backendWh.id,
+        createdAt: new Date().toISOString(),
       }
+
+      // 2. Save locally first so the viewer always has a fallback
       saveConfig(cfg)
-      
+
+      // 3. Sync full layout to backend so slot IDs become real DB UUIDs (PATCH will work)
+      await syncWarehouseLayout(backendWh.id, cfg)
+
       router.push('/client/warehouses')
     } catch (error) {
       console.error('Failed to create warehouse:', error)
-      alert('Erreur lors de la création de l\'entrepôt sur le serveur')
+      alert("Erreur lors de la création de l'entrepôt sur le serveur")
     } finally {
       setIsSubmitting(false)
     }
