@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import pool from "../../infrastructure/database/db";
+import { AppError } from "../../common/errors/app-error";
 import { LoginBody, RegisterBody } from "./auth.types";
 
 dotenv.config();
@@ -19,11 +20,11 @@ export async function registerUser(body: RegisterBody) {
   } = body;
 
   if (!email || !password || !company_name) {
-    throw new Error("email, password and company_name are required");
+    throw new AppError("email, password and company_name are required", 400);
   }
 
   if (!["admin", "client", "partner"].includes(role)) {
-    throw new Error("Invalid role");
+    throw new AppError("Invalid role", 400);
   }
 
   const existingUser = await pool.query(
@@ -32,7 +33,7 @@ export async function registerUser(body: RegisterBody) {
   );
 
   if (existingUser.rows.length > 0) {
-    throw new Error("Email already exists");
+    throw new AppError("Email already exists", 409);
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
@@ -79,14 +80,14 @@ export async function loginUser(body: LoginBody) {
   );
 
   if (result.rows.length === 0) {
-    throw new Error("Invalid credentials");
+    throw new AppError("Invalid credentials", 401);
   }
 
   const user = result.rows[0];
   const passwordMatches = await bcrypt.compare(password, user.password_hash);
 
   if (!passwordMatches) {
-    throw new Error("Invalid credentials");
+    throw new AppError("Invalid credentials", 401);
   }
 
   const token = jwt.sign(
