@@ -13,26 +13,35 @@ export function computeFlexibilityScore(deliveryNeed: DeliveryNeedInput): number
   return score;
 }
 
-export function validateOrderPayload(body: CreateOrderBody): string | null {
-  if (!body.customer) return "customer is required";
+export function validateOrderPayload(body: CreateOrderBody, role: "admin" | "client" | "partner"): string | null {
   if (!body.delivery_destination) return "delivery_destination is required";
   if (!body.order_lines || !Array.isArray(body.order_lines) || body.order_lines.length === 0) {
     return "order_lines must be a non-empty array";
   }
   if (!body.delivery_need) return "delivery_need is required";
 
+  if (role === "admin" && !body.customer) {
+    return "customer is required for admin-created orders";
+  }
+
   const { customer, delivery_destination, delivery_need } = body;
 
-  if (!customer.company_name) return "customer.company_name is required";
+  if (role === "admin" && !customer?.company_name) {
+    return "customer.company_name is required";
+  }
+
   if (!delivery_destination.delivery_address) {
     return "delivery_destination.delivery_address is required";
   }
+
   if (!delivery_need.requested_delivery_date) {
     return "delivery_need.requested_delivery_date is required";
   }
+
   if (!delivery_need.delivery_time_window) {
     return "delivery_need.delivery_time_window is required";
   }
+
   if (!delivery_need.urgency_level) {
     return "delivery_need.urgency_level is required";
   }
