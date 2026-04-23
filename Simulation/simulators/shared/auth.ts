@@ -47,3 +47,34 @@ export async function login(
   client.setToken(res.token);
   return res;
 }
+
+export type AuthOutcome = "logged_in" | "registered_then_logged_in";
+
+export interface EnsureAuthenticatedResult {
+  outcome: AuthOutcome;
+  user: LoginResponse["user"];
+}
+
+/**
+ * Tente un login direct — si le compte n'existe pas (401), enregistre puis
+ * relogue. Rend le simulateur idempotent entre runs : le marchand peut
+ * être déjà présent en base sans faire tomber le backend sur un register en
+ * doublon.
+ */
+export async function ensureAuthenticated(
+  client: ApiClient,
+  payload: RegisterPayload
+): Promise<EnsureAuthenticatedResult> {
+  try {
+    const res = await login(client, payload.email, payload.password);
+    return { outcome: "logged_in", user: res.user };
+  } catch (err) {
+    if (!(err instanceof ApiError) || err.status !== 401) {
+      throw err;
+    }
+  }
+
+  await registerIfNew(client, payload);
+  const res = await login(client, payload.email, payload.password);
+  return { outcome: "registered_then_logged_in", user: res.user };
+}
