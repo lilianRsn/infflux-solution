@@ -1,16 +1,63 @@
 import pool from "../../infrastructure/database/db";
 import { AppError } from "../../common/errors/app-error";
 import { computeFlexibilityScore, validateOrderPayload } from "./orders.utils";
-import { AuthUser, CreateOrderBody } from "./orders.types";
+import { AuthUser, CreateOrderBody, CustomerInput } from "./orders.types";
+
+async function resolveCustomerData(body: CreateOrderBody, user: AuthUser): Promise<{ customerId: string | null; customer: CustomerInput }> {
+  if (user.role === "client") {
+    const userResult = await pool.query(
+      `
+      SELECT
+        id,
+        company_name,
+        billing_address,
+        main_contact_name,
+        main_contact_phone,
+        main_contact_email
+      FROM users
+      WHERE id = $1
+      `,
+      [user.id]
+    );
+
+    if (!userResult.rows.length) {
+      throw new AppError("User not found", 404);
+    }
+
+    const profile = userResult.rows[0];
+
+    return {
+      customerId: profile.id,
+      customer: {
+        customer_id: profile.id,
+        company_name: profile.company_name,
+        billing_address: profile.billing_address ?? undefined,
+        main_contact_name: profile.main_contact_name ?? undefined,
+        main_contact_phone: profile.main_contact_phone ?? undefined,
+        main_contact_email: profile.main_contact_email ?? undefined
+      }
+    };
+  }
+
+  if (!body.customer) {
+    throw new AppError("customer is required for admin-created orders", 400);
+  }
+
+  return {
+    customerId: body.customer.customer_id || null,
+    customer: body.customer
+  };
+}
 
 export async function createOrder(body: CreateOrderBody, user: AuthUser) {
-  const validationError = validateOrderPayload(body);
+  const validationError = validateOrderPayload(body, user.role);
 
   if (validationError) {
     throw new AppError(validationError, 400);
   }
 
-  const { customer, delivery_destination, order_lines, delivery_need } = body;
+  const { delivery_destination, order_lines, delivery_need } = body;
+  const { customerId, customer } = await resolveCustomerData(body, user);
 
   const totalPallets = order_lines.reduce(
     (sum, line) => sum + Number(line.quantity_pallets),
@@ -44,7 +91,6 @@ export async function createOrder(body: CreateOrderBody, user: AuthUser) {
       : "optimized";
 
   const orderNumber = `ORD-${Date.now()}`;
-  const customerId = user.role === "client" ? user.id : customer.customer_id || null;
 
   const dbClient = await pool.connect();
 
