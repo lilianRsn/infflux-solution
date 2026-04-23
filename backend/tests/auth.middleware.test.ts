@@ -2,7 +2,7 @@
 
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import authenticateToken from "../src/middleware/auth";
+import authenticateToken from "../src/common/guards/auth.guard";
 
 describe("authenticateToken middleware", () => {
   const originalSecret = process.env.JWT_SECRET;
