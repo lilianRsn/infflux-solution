@@ -1,6 +1,7 @@
 import express, { Express, Request, Response } from "express";
 import swaggerUi from "swagger-ui-express";
 import swaggerSpec from "./config/swagger";
+import cors from "cors";
 import authRoutes from "./modules/auth/auth.routes";
 import orderRoutes from "./modules/orders/orders.routes";
 import clientWarehousesRoutes from "./modules/client-warehouses/client-warehouses.routes";
@@ -11,6 +12,10 @@ import authenticateToken from "./common/guards/auth.guard";
 
 const app: Express = express();
 
+app.use(cors({
+  origin: "http://localhost:3000",
+  credentials: true
+}));
 app.use(express.json());
 app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 

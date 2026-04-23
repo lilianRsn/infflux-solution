@@ -8,8 +8,10 @@ import {
 import { useEffect, useState } from 'react'
 import Navbar from '@/components/layout/Navbar'
 import { User } from '@/types/auth'
+import { getOrders } from '@/lib/api'
+import type { Order } from '@/types/order'
 
-// ─── Mock data ───────────────────────────────────────────────────────────────
+// ─── Mock data (En attendant les routes API spécifiques) ──────────────
 
 const weekData = [
   { j: 'Lun', total: 32, opt: 18 },
@@ -35,14 +37,6 @@ const pieData = [
   { name: 'Groupées',      value: 14 },
 ]
 const PIE_COLORS = ['#534AB7', '#1D9E75', '#BA7517']
-
-const orders = [
-  { id: '#1042', client: 'Dupont SAS',  dest: 'Lyon 3e',         type: 'partenaire', label: 'TransLog',   eco: '−34 €'   },
-  { id: '#1043', client: 'Martin & Co', dest: 'Grenoble',        type: 'groupée',    label: 'avec #1045', eco: '−18 €'   },
-  { id: '#1044', client: 'BTP Sud',     dest: 'Valence',         type: 'anticipée',  label: 'possible',   eco: 'créneau' },
-  { id: '#1045', client: 'Rhône Bois',  dest: 'Grenoble',        type: 'groupée',    label: 'avec #1043', eco: '−18 €'   },
-  { id: '#1047', client: 'ProElec 69',  dest: 'Bourg-en-Bresse', type: 'partenaire', label: 'NordLog',    eco: '−22 €'   },
-]
 
 const trucks = [
   { id: 'T-01', route: 'Lyon → Grenoble',  fill: 82, status: 'on'      },
@@ -85,22 +79,41 @@ function CustomTooltip({ active, payload, label }: any) {
 
 export default function AdminDashboardPage() {
   const [user, setUser] = useState<User | null>(null)
+  const [orders, setOrders] = useState<Order[]>([])
+  const [isLoadingOrders, setIsLoadingOrders] = useState(true)
 
   useEffect(() => {
-    // Récupérer les infos de l'utilisateur depuis les cookies/storage local
-    // Simulation simple pour l'UI, normalement via fetch api ou un store
+    // Info user simulée
     setUser({
       id: '1',
       email: 'admin@infflux.com',
       name: 'Admin Infflux',
       role: 'admin'
     })
+
+    // Chargement des vraies commandes depuis l'API
+    async function loadOrders() {
+      try {
+        const data = await getOrders()
+        // On garde les 5 dernières commandes pour le dashboard
+        setOrders(data.slice(0, 5))
+      } catch (error) {
+        console.error('Erreur lors du chargement des commandes:', error)
+      } finally {
+        setIsLoadingOrders(false)
+      }
+    }
+
+    loadOrders()
   }, [])
 
   const badgeClass: Record<string, string> = {
     partenaire: 'bg-[#EAF3DE] text-[#3B6D11]',
     groupée:    'bg-[#E6F1FB] text-[#185FA5]',
     anticipée:  'bg-[#FAEEDA] text-[#854F0B]',
+    standard:   'bg-gray-100 text-gray-600',
+    urgent:     'bg-red-100 text-red-700',
+    flexible:   'bg-blue-100 text-blue-700',
   }
 
   const statusClass: Record<string, string> = {
@@ -118,7 +131,7 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* Header global au lieu de la sidebar */}
+      {/* Header global */}
       {user && <Navbar user={user} />}
 
       {/* Main Content */}
@@ -215,37 +228,41 @@ export default function AdminDashboardPage() {
 
         {/* Bottom Row */}
         <div className="grid grid-cols-[2fr_1fr] gap-4">
-           {/* Orders Table */}
+           {/* API Orders Table */}
            <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-              <h3 className="text-sm font-medium text-gray-900 mb-4">Commandes en attente (Top 5)</h3>
-              <div className="grid grid-cols-[46px_90px_1fr_105px_58px_52px] gap-2 bg-gray-50 text-[10px] uppercase tracking-wide text-gray-400 p-2 rounded-lg mb-2">
-                 <div>ID</div>
+              <h3 className="text-sm font-medium text-gray-900 mb-4">Dernières commandes (API)</h3>
+              <div className="grid grid-cols-[70px_100px_1fr_105px_70px] gap-2 bg-gray-50 text-[10px] uppercase tracking-wide text-gray-400 p-2 rounded-lg mb-2">
+                 <div>N°</div>
                  <div>Client</div>
-                 <div>Dest.</div>
-                 <div>Type & Label</div>
-                 <div className="text-right">Éco.</div>
-                 <div></div>
+                 <div>Adresse de dest.</div>
+                 <div>Urgence</div>
+                 <div className="text-right">Palettes</div>
               </div>
-              <div className="flex flex-col gap-1">
-                 {orders.map((o, i) => (
-                    <div key={i} className="grid grid-cols-[46px_90px_1fr_105px_58px_52px] gap-2 items-center p-2 text-xs border-b border-gray-100 last:border-0">
-                       <div className="text-gray-500 font-mono">{o.id}</div>
-                       <div className="font-medium text-gray-900 truncate">{o.client}</div>
-                       <div className="text-gray-500 truncate">{o.dest}</div>
-                       <div className="flex flex-col items-start gap-0.5">
-                          <span className={`inline-flex px-1.5 py-0.5 rounded-full text-[10px] font-medium ${badgeClass[o.type]}`}>
-                             {o.type}
+              
+              <div className="flex flex-col gap-1 min-h-[150px]">
+                 {isLoadingOrders ? (
+                   <div className="flex items-center justify-center py-8 text-gray-400 text-sm">
+                     Chargement des commandes...
+                   </div>
+                 ) : orders.length === 0 ? (
+                   <div className="flex items-center justify-center py-8 text-gray-400 text-sm">
+                     Aucune commande trouvée
+                   </div>
+                 ) : (
+                   orders.map((o) => (
+                    <div key={o.id} className="grid grid-cols-[70px_100px_1fr_105px_70px] gap-2 items-center p-2 text-xs border-b border-gray-100 last:border-0">
+                       <div className="text-gray-500 font-mono truncate">{o.order_number}</div>
+                       <div className="font-medium text-gray-900 truncate" title={o.company_name}>{o.company_name}</div>
+                       <div className="text-gray-500 truncate" title={o.delivery_address}>{o.delivery_address}</div>
+                       <div className="flex items-start">
+                          <span className={`inline-flex px-1.5 py-0.5 rounded-full text-[10px] font-medium ${badgeClass[o.urgency_level] || badgeClass.standard}`}>
+                             {o.urgency_level}
                           </span>
-                          <span className="text-[10px] text-gray-400">{o.label}</span>
                        </div>
-                       <div className="text-right font-medium text-[#3B6D11]">{o.eco}</div>
-                       <div className="text-right">
-                          <button className="border border-[#534AB7] text-[#534AB7] bg-transparent text-[10px] px-2 py-0.5 rounded hover:bg-[#EEEDFE] transition-colors cursor-pointer">
-                             Affecter
-                          </button>
-                       </div>
+                       <div className="text-right font-medium text-gray-700">{o.total_pallets} pal.</div>
                     </div>
-                 ))}
+                   ))
+                 )}
               </div>
            </div>
 

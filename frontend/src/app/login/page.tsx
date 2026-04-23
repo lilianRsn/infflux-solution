@@ -12,6 +12,8 @@ import {
   Loader2,
   Info
 } from 'lucide-react'
+import { login } from '@/lib/api'
+import { getRedirectByRole } from '@/lib/auth'
 
 type Role = 'client' | 'admin' | 'partenaire'
 
@@ -61,19 +63,16 @@ export default function LoginPage() {
     setError('')
     startTransition(async () => {
       try {
-        const res = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
-        })
-        const data = await res.json()
-        if (!res.ok) {
-          setError(data.error ?? 'Erreur de connexion')
-          return
+        const { user } = await login({ email, password })
+        if (user?.role) {
+          const redirectPath = getRedirectByRole(user.role)
+          router.push(redirectPath)
+        } else {
+          setError('Rôle utilisateur non défini.')
         }
-        router.push(data.redirect)
-      } catch {
-        setError('Impossible de contacter le serveur')
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Erreur de connexion'
+        setError(errorMessage)
       }
     })
   }
