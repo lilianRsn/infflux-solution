@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getSessionUser } from '@/lib/server-auth'
-import { fetchBackend } from '@/lib/api'
+import { fetchBackend } from '@/lib/server-api'
 import ClientsContent from './ClientsContent'
 
 export default async function AdminClientsPage() {

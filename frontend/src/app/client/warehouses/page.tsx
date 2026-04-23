@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { getSessionUser } from '@/lib/server-auth'
 import Navbar from '@/components/layout/Navbar'
 import WarehouseList from '@/components/warehouse/WarehouseList'
-import { fetchBackend } from '@/lib/api'
+import { fetchBackend } from '@/lib/server-api'
 
 export default async function WarehouseListPage() {
   const user = await getSessionUser()

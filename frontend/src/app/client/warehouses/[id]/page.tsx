@@ -4,7 +4,7 @@ import { ChevronLeft } from 'lucide-react'
 import { getSessionUser } from '@/lib/server-auth'
 import Navbar from '@/components/layout/Navbar'
 import WarehouseViewer from '@/components/warehouse/WarehouseViewer'
-import { fetchBackend } from '@/lib/api'
+import { fetchBackend } from '@/lib/server-api'
 
 interface Props {
   params: Promise<{ id: string }>

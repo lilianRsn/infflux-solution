@@ -1,39 +1,51 @@
-import { cookies } from 'next/headers'
-import { getBackendUrl } from '@/lib/backend-url'
+type LoginPayload = {
+  email: string
+  password: string
+}
 
-const BACKEND_URL = getBackendUrl()
-
-export async function fetchBackend<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const cookieStore = await cookies()
-  const token = cookieStore.get('infflux_token')?.value
-
-  const headers = new Headers(options.headers)
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`)
+type LoginResponse = {
+  user: {
+    id: string
+    email: string
+    name: string
+    role: 'admin' | 'client' | 'partenaire'
   }
-  
-  // Only set application/json if no body or body is not FormData
-  if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
-    headers.set('Content-Type', 'application/json')
-  }
+  redirect: string
+}
 
-  const response = await fetch(`${BACKEND_URL}${endpoint}`, {
-    ...options,
-    headers,
-    // Add cache: 'no-store' for dynamic data during hackathon to avoid stale data
-    cache: 'no-store'
+async function clientFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const response = await fetch(path, {
+    headers: { 'Content-Type': 'application/json', ...(init.headers ?? {}) },
+    ...init,
   })
 
   if (!response.ok) {
     let errorMessage = `Error: ${response.status} ${response.statusText}`
     try {
       const errorData = await response.json()
-      errorMessage = errorData.message || errorMessage
-    } catch (e) {
-      // Not JSON
-    }
+      errorMessage = errorData.error || errorData.message || errorMessage
+    } catch {}
     throw new Error(errorMessage)
   }
 
   return response.json() as Promise<T>
+}
+
+export function login(body: LoginPayload) {
+  return clientFetch<LoginResponse>('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export function getOrders() {
+  return clientFetch('/api/orders')
+}
+
+export function getClients() {
+  return clientFetch('/api/users/clients')
+}
+
+export function getWarehousesAvailability() {
+  return clientFetch('/api/client-warehouses/availability')
 }

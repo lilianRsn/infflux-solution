@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation'
 import { getSessionUser } from '@/lib/server-auth'
-import { fetchBackend } from '@/lib/api'
 import Navbar from '@/components/layout/Navbar'
 
 export default async function WarehousePage() {

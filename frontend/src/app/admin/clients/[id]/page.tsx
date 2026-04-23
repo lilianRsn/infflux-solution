@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getSessionUser } from '@/lib/server-auth'
-import { fetchBackend } from '@/lib/api'
+import { fetchBackend } from '@/lib/server-api'
 import ClientDetailContent from './ClientDetailContent'
 
 interface PageProps {
