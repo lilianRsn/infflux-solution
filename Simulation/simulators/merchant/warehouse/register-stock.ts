@@ -22,6 +22,7 @@ export interface StockRegistration {
   floor_id: string;
   aisle_ids: Record<string, string>;
   slot_ids: Record<string, string>;
+  reused: boolean;
 }
 
 export async function registerStock(
@@ -69,6 +70,7 @@ export async function registerStock(
     warehouse_id: warehouse.id,
     floor_id: floor.id,
     aisle_ids,
-    slot_ids
+    slot_ids,
+    reused: false
   };
 }
