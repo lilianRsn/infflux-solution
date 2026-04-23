@@ -8,7 +8,7 @@ export interface CustomerInput {
 }
 
 export interface DeliveryDestinationInput {
-  delivery_address: string;
+  delivery_address?: string;
   site_name?: string;
   delivery_contact_name?: string;
   delivery_contact_phone?: string;
@@ -34,8 +34,9 @@ export interface DeliveryNeedInput {
 }
 
 export interface CreateOrderBody {
+  client_warehouse_id: string;
   customer?: CustomerInput;
-  delivery_destination: DeliveryDestinationInput;
+  delivery_destination?: DeliveryDestinationInput;
   order_lines: OrderLineInput[];
   delivery_need: DeliveryNeedInput;
 }
