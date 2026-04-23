@@ -23,7 +23,8 @@ export interface MerchantScenario {
 
 export const defaultScenario: MerchantScenario = {
   nom: "continuous",
-  seed: Math.floor(Math.random() * 1000000),
+  // seed: Math.floor(Math.random() * 1000000),
+  seed: 42,
   nb_ticks: Infinity,
   tick_rate_ms: 15000,
   proba_consommation_par_tick: 0.8,
