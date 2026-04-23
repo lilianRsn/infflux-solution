@@ -1,5 +1,6 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+DROP TABLE IF EXISTS delivery_plan_docks CASCADE;
 DROP TABLE IF EXISTS delivery_plan_trucks CASCADE;
 DROP TABLE IF EXISTS delivery_plan_orders CASCADE;
 DROP TABLE IF EXISTS delivery_plans CASCADE;
@@ -206,4 +207,13 @@ CREATE TABLE delivery_plan_trucks (
   truck_id UUID NOT NULL REFERENCES trucks(id) ON DELETE CASCADE,
   assigned_pallets INTEGER NOT NULL CHECK (assigned_pallets > 0),
   assigned_volume_m3 NUMERIC(10,2) NOT NULL DEFAULT 0 CHECK (assigned_volume_m3 >= 0)
+);
+
+CREATE TABLE delivery_plan_docks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  delivery_plan_id UUID NOT NULL REFERENCES delivery_plans(id) ON DELETE CASCADE,
+  loading_dock_id UUID NOT NULL REFERENCES loading_docks(id) ON DELETE CASCADE,
+  truck_id UUID NOT NULL REFERENCES trucks(id) ON DELETE CASCADE,
+  UNIQUE (delivery_plan_id, loading_dock_id),
+  UNIQUE (delivery_plan_id, truck_id)
 );
