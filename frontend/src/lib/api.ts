@@ -1,38 +1,66 @@
-import { cookies } from 'next/headers'
+import { getToken, saveToken } from '@/lib/auth'
+import type { Order, ClientUser, WarehouseAvailability } from '@/types/order'
+import type { LoginCredentials, AuthSession } from '@/types/auth'
 
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001'
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
-export async function fetchBackend<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const cookieStore = await cookies()
-  const token = cookieStore.get('infflux_token')?.value
-
+async function fetchWithAuth<T>(
+  path: string,
+  options: RequestInit = {}
+): Promise<T> {
+  // Use localStorage token if in browser, otherwise we can't reliably get the token
+  // in client components without passing it down from server components.
+  const token = typeof window !== 'undefined' ? getToken() : null
+  
   const headers = new Headers(options.headers)
   if (token) {
     headers.set('Authorization', `Bearer ${token}`)
   }
-
-  // Only set application/json if no body or body is not FormData
-  if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
+  if (!headers.has('Content-Type') && options.body) {
     headers.set('Content-Type', 'application/json')
   }
 
-  const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+  const res = await fetch(`${API_URL}${path}`, {
     ...options,
     headers,
-    // Add cache: 'no-store' for dynamic data during hackathon to avoid stale data
-    cache: 'no-store'
   })
 
-  if (!response.ok) {
-    let errorMessage = `Error: ${response.status} ${response.statusText}`
-    try {
-      const errorData = await response.json()
-      errorMessage = errorData.message || errorMessage
-    } catch (e) {
-      // Not JSON
-    }
+  if (!res.ok) {
+    // Essayer de lire le corps de la réponse pour obtenir plus de détails sur l'erreur
+    const errorBody = await res.json().catch(() => ({}))
+    const errorMessage = errorBody.message || `API Error ${res.status}`
     throw new Error(errorMessage)
   }
 
-  return response.json() as Promise<T>
+  // Gérer le cas où la réponse est vide (ex: 204 No Content)
+  if (res.status === 204) {
+    return null as T
+  }
+
+  return await res.json() as T
+}
+
+export { fetchWithAuth as fetchBackend }
+
+export function getOrders(): Promise<Order[]> {
+  return fetchWithAuth<Order[]>('/api/orders')
+}
+
+export function getClients(): Promise<ClientUser[]> {
+  return fetchWithAuth<ClientUser[]>('/api/users/clients')
+}
+
+export function getWarehousesAvailability(): Promise<WarehouseAvailability[]> {
+  return fetchWithAuth<WarehouseAvailability[]>('/api/client-warehouses/availability')
+}
+
+export async function login(credentials: LoginCredentials): Promise<AuthSession> {
+  const response = await fetchWithAuth<AuthSession>('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(credentials),
+  })
+  if (response.token) {
+    saveToken(response.token)
+  }
+  return response
 }
