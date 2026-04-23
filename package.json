@@ -1,0 +1,8 @@
+{
+  "name": "infflux-solution",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "spawn-merchant": "npm run spawn-merchant --prefix Simulation/simulators --"
+  }
+}

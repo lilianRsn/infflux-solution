@@ -5,6 +5,7 @@
   "description": "Simulateurs (marchand, entrepôt, transporteur) de la plateforme logistique Infflux. Communiquent avec le backend uniquement via HTTP.",
   "scripts": {
     "merchant": "tsx merchant/index.ts",
+    "spawn-merchant": "tsx merchant/spawn.ts",
     "test": "jest --runInBand",
     "test:watch": "jest --watch",
     "build": "tsc -p tsconfig.build.json"
