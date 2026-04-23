@@ -705,6 +705,110 @@ const swaggerSpec = swaggerJSDoc({
                     }
                 }
             },
+            "/api/client-warehouses/{id}": {
+                patch: {
+                    tags: ["Client Warehouses"],
+                    summary: "Update a client warehouse",
+                    security: [{ bearerAuth: [] }],
+                    parameters: [
+                        {
+                            in: "path",
+                            name: "id",
+                            required: true,
+                            schema: { type: "string", format: "uuid" }
+                        }
+                    ],
+                    requestBody: {
+                        required: true,
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/CreateWarehouseRequest" }
+                            }
+                        }
+                    },
+                    responses: {
+                        "200": { description: "Warehouse updated" }
+                    }
+                }
+            },
+            "/api/client-warehouses/floors/{floorId}": {
+                patch: {
+                    tags: ["Client Warehouses"],
+                    summary: "Update a floor",
+                    security: [{ bearerAuth: [] }],
+                    parameters: [
+                        {
+                            in: "path",
+                            name: "floorId",
+                            required: true,
+                            schema: { type: "string", format: "uuid" }
+                        }
+                    ],
+                    requestBody: {
+                        required: true,
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/CreateFloorRequest" }
+                            }
+                        }
+                    },
+                    responses: {
+                        "200": { description: "Floor updated" }
+                    }
+                }
+            },
+            "/api/client-warehouses/aisles/{aisleId}": {
+                patch: {
+                    tags: ["Client Warehouses"],
+                    summary: "Update an aisle",
+                    security: [{ bearerAuth: [] }],
+                    parameters: [
+                        {
+                            in: "path",
+                            name: "aisleId",
+                            required: true,
+                            schema: { type: "string", format: "uuid" }
+                        }
+                    ],
+                    requestBody: {
+                        required: true,
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/CreateAisleRequest" }
+                            }
+                        }
+                    },
+                    responses: {
+                        "200": { description: "Aisle updated" }
+                    }
+                }
+            },
+            "/api/client-warehouses/parking-zones/{parkingZoneId}": {
+                patch: {
+                    tags: ["Client Warehouses"],
+                    summary: "Update a parking zone",
+                    security: [{ bearerAuth: [] }],
+                    parameters: [
+                        {
+                            in: "path",
+                            name: "parkingZoneId",
+                            required: true,
+                            schema: { type: "string", format: "uuid" }
+                        }
+                    ],
+                    requestBody: {
+                        required: true,
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/CreateParkingZoneRequest" }
+                            }
+                        }
+                    },
+                    responses: {
+                        "200": { description: "Parking zone updated" }
+                    }
+                }
+            },
         }
     },
     apis: []
