@@ -10,7 +10,7 @@ import { buildStock, consommerCartons } from "./storage/build";
 import { totalCartonsParProduit } from "./storage/convert";
 import { snapshotStock } from "./behaviors/snapshot-stock";
 import { buildCreateOrderBody, productsBelowThreshold } from "./behaviors/submit-order";
-import { registerStock } from "./warehouse/register-stock";
+import { ensureStockRegistration } from "./warehouse/ensure-stock";
 import { syncSlot } from "./warehouse/sync-slot";
 import { StockMarchand, Rangee } from "./storage/model";
 
@@ -57,8 +57,14 @@ export async function runMerchant(scenario: MerchantScenario): Promise<RunReport
   const stock = buildStock(rng, scenario.stock_init);
   log.info("stock_initial", { snapshot: snapshotStock(stock) });
 
-  const registration = await registerStock(client, stock, scenario.warehouse);
+  const registration = await ensureStockRegistration(
+    client,
+    stock,
+    scenario.warehouse,
+    auth.user.id
+  );
   log.info("stock_registered", {
+    reused: registration.reused,
     warehouse_id: registration.warehouse_id,
     floor_id: registration.floor_id,
     aisles: registration.aisle_ids,
