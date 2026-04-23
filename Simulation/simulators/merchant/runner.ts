@@ -35,6 +35,16 @@ export async function runMerchant(scenario: MerchantScenario): Promise<RunReport
   let commandesSucces = 0;
   let commandesEchecs = 0;
   let slotsSynchronises = 0;
+  let ticksExecutes = 0;
+
+  let shutdownRequested = false;
+  const onSignal = (signal: NodeJS.Signals) => {
+    if (shutdownRequested) return;
+    shutdownRequested = true;
+    log.info("shutdown_signal", { signal });
+  };
+  process.once("SIGINT", onSignal);
+  process.once("SIGTERM", onSignal);
 
   log.info("boot", { backend: env.backendUrl, seed: scenario.seed });
 
@@ -74,7 +84,9 @@ export async function runMerchant(scenario: MerchantScenario): Promise<RunReport
   await runTicks({
     nbTicks: scenario.nb_ticks,
     tickRateMs: scenario.tick_rate_ms,
+    shouldStop: () => shutdownRequested,
     onTick: async ({ tick }) => {
+      ticksExecutes = tick;
       const tlog = log.withTick(tick);
 
       if (rng.bernoulli(scenario.proba_consommation_par_tick)) {
@@ -165,7 +177,7 @@ export async function runMerchant(scenario: MerchantScenario): Promise<RunReport
 
   const report: RunReport = {
     scenario: scenario.nom,
-    ticks: scenario.nb_ticks,
+    ticks: ticksExecutes,
     commandes_envoyees: commandesEnvoyees,
     commandes_succes: commandesSucces,
     commandes_echecs: commandesEchecs,
