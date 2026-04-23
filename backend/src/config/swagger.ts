@@ -70,11 +70,15 @@ const swaggerSpec = swaggerJSDoc({
 
                 CreateOrderRequest: {
                     type: "object",
-                    required: ["customer", "delivery_destination", "order_lines", "delivery_need"],
+                    required: ["client_warehouse_id", "order_lines", "delivery_need"],
                     properties: {
+                        client_warehouse_id: {
+                            type: "string",
+                            format: "uuid",
+                            example: "6f8f2b8d-2a41-4f4c-8d1e-5c7b0a9c1234"
+                        },
                         customer: {
                             type: "object",
-                            required: ["company_name"],
                             properties: {
                                 customer_id: { type: "string", format: "uuid" },
                                 company_name: { type: "string", example: "Client A" },
@@ -86,7 +90,6 @@ const swaggerSpec = swaggerJSDoc({
                         },
                         delivery_destination: {
                             type: "object",
-                            required: ["delivery_address"],
                             properties: {
                                 delivery_address: {
                                     type: "string",
@@ -144,6 +147,49 @@ const swaggerSpec = swaggerJSDoc({
                         }
                     }
                 },
+
+                CreateTruckRequest: {
+                    type: "object",
+                    required: ["code", "max_pallets"],
+                    properties: {
+                        code: { type: "string", example: "TRUCK-1" },
+                        max_pallets: { type: "integer", example: 12 },
+                        max_volume_m3: { type: "number", example: 40 },
+                        max_weight_kg: { type: "number", example: 18000 },
+                        status: {
+                            type: "string",
+                            enum: ["AVAILABLE", "IN_DELIVERY", "MAINTENANCE"],
+                            example: "AVAILABLE"
+                        }
+                    }
+                },
+                UpdateTruckRequest: {
+                    type: "object",
+                    properties: {
+                        code: { type: "string", example: "TRUCK-1" },
+                        max_pallets: { type: "integer", example: 12 },
+                        max_volume_m3: { type: "number", example: 40 },
+                        max_weight_kg: { type: "number", example: 18000 },
+                        status: {
+                            type: "string",
+                            enum: ["AVAILABLE", "IN_DELIVERY", "MAINTENANCE"],
+                            example: "MAINTENANCE"
+                        }
+                    }
+                },
+                UpdateDeliveryPlanStatusRequest: {
+                    type: "object",
+                    required: ["status"],
+                    properties: {
+                        status: {
+                            type: "string",
+                            enum: ["DRAFT", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "BLOCKED"],
+                            example: "CONFIRMED"
+                        }
+                    }
+                },
+
+
 
                 CreateWarehouseRequest: {
                     type: "object",
@@ -423,9 +469,9 @@ const swaggerSpec = swaggerJSDoc({
             "/api/orders": {
                 post: {
                     tags: ["Orders"],
-                    summary: "Create a new order",
+                    summary: "Create a new order for a client warehouse",
                     description:
-                        "For clients, customer data is loaded automatically from the authenticated profile. Admins must still provide the customer block.",
+                        "Clients provide client_warehouse_id, order lines, and delivery constraints. Customer profile data is loaded automatically for client users. Admins may also provide a customer block.",
                     security: [{ bearerAuth: [] }],
                     requestBody: {
                         required: true,
@@ -952,6 +998,143 @@ const swaggerSpec = swaggerJSDoc({
                     }
                 }
             },
+
+            "/api/trucks": {
+                post: {
+                    tags: ["Trucks"],
+                    summary: "Create a truck",
+                    security: [{ bearerAuth: [] }],
+                    requestBody: {
+                        required: true,
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/CreateTruckRequest" }
+                            }
+                        }
+                    },
+                    responses: {
+                        "201": { description: "Truck created" },
+                        "400": { description: "Validation error" },
+                        "401": { description: "Unauthorized" },
+                        "403": { description: "Forbidden" }
+                    }
+                },
+                get: {
+                    tags: ["Trucks"],
+                    summary: "List trucks",
+                    security: [{ bearerAuth: [] }],
+                    responses: {
+                        "200": { description: "Truck list" },
+                        "401": { description: "Unauthorized" },
+                        "403": { description: "Forbidden" }
+                    }
+                }
+            },
+            "/api/trucks/{id}": {
+                patch: {
+                    tags: ["Trucks"],
+                    summary: "Update a truck",
+                    security: [{ bearerAuth: [] }],
+                    parameters: [
+                        {
+                            in: "path",
+                            name: "id",
+                            required: true,
+                            schema: { type: "string", format: "uuid" }
+                        }
+                    ],
+                    requestBody: {
+                        required: true,
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/UpdateTruckRequest" }
+                            }
+                        }
+                    },
+                    responses: {
+                        "200": { description: "Truck updated" },
+                        "400": { description: "Validation error" },
+                        "401": { description: "Unauthorized" },
+                        "403": { description: "Forbidden" },
+                        "404": { description: "Truck not found" }
+                    }
+                }
+            },
+            "/api/delivery-plans/generate": {
+                post: {
+                    tags: ["Delivery Plans"],
+                    summary: "Generate delivery plans from unplanned orders",
+                    security: [{ bearerAuth: [] }],
+                    responses: {
+                        "201": { description: "Delivery plans generated" },
+                        "401": { description: "Unauthorized" },
+                        "403": { description: "Forbidden" }
+                    }
+                }
+            },
+            "/api/delivery-plans": {
+                get: {
+                    tags: ["Delivery Plans"],
+                    summary: "List delivery plans",
+                    security: [{ bearerAuth: [] }],
+                    responses: {
+                        "200": { description: "Delivery plans list" },
+                        "401": { description: "Unauthorized" },
+                        "403": { description: "Forbidden" }
+                    }
+                }
+            },
+            "/api/delivery-plans/{id}": {
+                get: {
+                    tags: ["Delivery Plans"],
+                    summary: "Get delivery plan details",
+                    security: [{ bearerAuth: [] }],
+                    parameters: [
+                        {
+                            in: "path",
+                            name: "id",
+                            required: true,
+                            schema: { type: "string", format: "uuid" }
+                        }
+                    ],
+                    responses: {
+                        "200": { description: "Delivery plan details" },
+                        "401": { description: "Unauthorized" },
+                        "403": { description: "Forbidden" },
+                        "404": { description: "Delivery plan not found" }
+                    }
+                }
+            },
+            "/api/delivery-plans/{id}/status": {
+                patch: {
+                    tags: ["Delivery Plans"],
+                    summary: "Update delivery plan status",
+                    security: [{ bearerAuth: [] }],
+                    parameters: [
+                        {
+                            in: "path",
+                            name: "id",
+                            required: true,
+                            schema: { type: "string", format: "uuid" }
+                        }
+                    ],
+                    requestBody: {
+                        required: true,
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/UpdateDeliveryPlanStatusRequest" }
+                            }
+                        }
+                    },
+                    responses: {
+                        "200": { description: "Delivery plan updated" },
+                        "401": { description: "Unauthorized" },
+                        "403": { description: "Forbidden" },
+                        "404": { description: "Delivery plan not found" }
+                    }
+                }
+            },
+
 
         }
     },
