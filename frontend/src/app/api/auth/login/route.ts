@@ -1,80 +1,39 @@
-import { SignJWT } from "jose";
 import { NextRequest, NextResponse } from "next/server";
 
-import type { Role, User } from "@/types/auth";
-
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET ?? "infflux-dev-secret-change-in-production",
-);
-
-const MOCK_USERS: (User & { password: string })[] = [
-  {
-    id: "1",
-    email: "admin@infflux.com",
-    password: "admin123",
-    name: "Admin Infflux",
-    role: "admin",
-    company: "Infflux",
-  },
-  {
-    id: "2",
-    email: "client@demo.com",
-    password: "client123",
-    name: "Jean Dupont",
-    role: "client",
-    company: "Dupont SAS",
-  },
-  {
-    id: "3",
-    email: "partenaire@translog.com",
-    password: "partenaire123",
-    name: "Marie Leroy",
-    role: "partenaire",
-    company: "TransLog Express",
-  },
-];
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001'
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password } = (await request.json()) as {
-      email?: string;
-      password?: string;
-    };
+    const body = await request.json();
+    
+    // Call real backend
+    const res = await fetch(`${BACKEND_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
 
-    const found = MOCK_USERS.find(
-      (user) => user.email === email && user.password === password,
-    );
-
-    if (!found) {
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ message: 'Erreur de connexion' }));
       return NextResponse.json(
-        { error: "Email ou mot de passe incorrect" },
-        { status: 401 },
+        { error: error.message || "Email ou mot de passe incorrect" },
+        { status: res.status },
       );
     }
 
-    const user: User = {
-      id: found.id,
-      email: found.email,
-      name: found.name,
-      role: found.role,
-      company: found.company,
-    };
+    const { user, token } = await res.json();
 
-    const token = await new SignJWT({ user })
-      .setProtectedHeader({ alg: "HS256" })
-      .setIssuedAt()
-      .setExpirationTime("8h")
-      .sign(JWT_SECRET);
+    const mappedRole = user.role === 'partner' ? 'partenaire' : user.role;
 
-    const redirects: Record<Role, string> = {
-      admin: "/",
-      client: "/",
-      partenaire: "/",
+    const redirects: Record<string, string> = {
+      admin: "/admin/dashboard",
+      client: "/client/commande",
+      partenaire: "/partenaire/dashboard",
     };
 
     const response = NextResponse.json({
-      user,
-      redirect: redirects[user.role],
+      user: { ...user, role: mappedRole },
+      redirect: redirects[mappedRole] || "/",
     });
 
     response.cookies.set("infflux_token", token, {
@@ -86,7 +45,8 @@ export async function POST(request: NextRequest) {
     });
 
     return response;
-  } catch {
+  } catch (error) {
+    console.error('Login error:', error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 }

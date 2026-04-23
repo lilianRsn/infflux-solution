@@ -1,12 +1,15 @@
 'use client'
 
-import type { StorageSlot } from '@/lib/warehouse-data'
+import { useState, useEffect } from 'react'
+import type { StorageSlot, SlotStatus } from '@/lib/warehouse-data'
+import { Save, Loader2 } from 'lucide-react'
+import { updateStorageSlot } from '@/app/actions/warehouse'
 
 const LABELS = { FREE: 'Libre', PARTIAL: 'Partiel', FULL: 'Plein' }
 const BADGE = {
-  FREE: 'bg-green-100 text-green-800',
-  PARTIAL: 'bg-amber-100 text-amber-800',
-  FULL: 'bg-red-100 text-red-800',
+  FREE: 'bg-green-100 text-green-900',
+  PARTIAL: 'bg-amber-100 text-amber-950',
+  FULL: 'bg-red-100 text-red-950',
 }
 const BAR = {
   FREE: 'bg-green-400',
@@ -18,74 +21,135 @@ interface Props {
   readonly slot: StorageSlot | null
   readonly readonly: boolean
   readonly onClose: () => void
+  readonly onUpdate: (slot: StorageSlot) => void
 }
 
-export default function SlotDetailPanel({ slot, readonly, onClose }: Props) {
+export default function SlotDetailPanel({ slot, readonly, onClose, onUpdate }: Props) {
+  const [usedVolume, setUsedVolume] = useState<number>(0)
+  const [isSaving, setIsSaving] = useState(false)
+
+  useEffect(() => {
+    if (slot) {
+      setUsedVolume(slot.usedVolume)
+    }
+  }, [slot])
+
   if (!slot) {
     return (
-      <div className="h-full flex items-center justify-center p-6">
-        <p className="text-slate-400 text-sm text-center">
-          Cliquez sur un emplacement pour voir ses détails
-        </p>
+      <div className="h-full flex items-center justify-center p-6 text-center">
+        <div>
+          <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
+            <span className="text-slate-300 text-2xl">📦</span>
+          </div>
+          <p className="text-slate-400 text-sm">
+            Cliquez sur un emplacement pour voir ses détails
+          </p>
+        </div>
       </div>
     )
   }
 
   const fillPct = Math.round((slot.usedVolume / slot.totalVolume) * 100)
 
+  async function handleSave() {
+    if (!slot) return
+    setIsSaving(true)
+    try {
+      let newStatus: SlotStatus = 'PARTIAL'
+      if (usedVolume === 0) newStatus = 'FREE'
+      if (usedVolume >= slot.totalVolume) newStatus = 'FULL'
+
+      // Call Server Action
+      await updateStorageSlot(slot.id, {
+        used_volume: usedVolume,
+        status: newStatus
+      })
+
+      onUpdate({
+        ...slot,
+        usedVolume: usedVolume,
+        status: newStatus,
+        updatedAt: new Date().toISOString()
+      })
+    } catch (error) {
+      console.error('Failed to save slot:', error)
+      alert('Erreur lors de la sauvegarde sur le serveur')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   return (
-    <div className="p-4 space-y-4">
+    <div className="p-4 space-y-5">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-xs text-slate-500 uppercase tracking-wide">Emplacement</p>
-          <p className="text-lg font-bold text-slate-800 font-mono">{slot.id}</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Emplacement</p>
+          <p className="text-xl font-black text-slate-900 font-mono tracking-tighter">{slot.id}</p>
         </div>
-        <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-xl leading-none mt-0.5">
-          ×
+        <button onClick={onClose} className="text-slate-400 hover:text-slate-900 p-1.5 rounded-lg hover:bg-slate-100 transition-all active:scale-90">
+          <span className="text-xl leading-none flex items-center justify-center w-5 h-5">×</span>
         </button>
       </div>
 
-      <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${BADGE[slot.status]}`}>
-        {LABELS[slot.status]}
-      </span>
+      <div className="flex items-center gap-2">
+        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${BADGE[slot.status]} ${
+          slot.status === 'FREE' ? 'border-green-200' : slot.status === 'PARTIAL' ? 'border-amber-200' : 'border-red-200'
+        }`}>
+          {LABELS[slot.status]}
+        </span>
+      </div>
 
-      <div className="space-y-1.5">
-        <div className="flex justify-between text-sm">
-          <span className="text-slate-500">Volume utilisé</span>
-          <span className="font-medium text-slate-700">{slot.usedVolume} / {slot.totalVolume} m³</span>
+      <div className="space-y-2">
+        <div className="flex justify-between text-xs font-medium">
+          <span className="text-slate-500">Occupation du volume</span>
+          <span className="text-slate-900">{slot.usedVolume} / {slot.totalVolume} m³</span>
         </div>
-        <div className="w-full bg-slate-100 rounded-full h-2">
+        <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
           <div
-            className={`h-2 rounded-full transition-all ${BAR[slot.status]}`}
+            className={`h-full transition-all duration-500 ${BAR[slot.status]}`}
             style={{ width: `${fillPct}%` }}
           />
         </div>
-        <p className="text-xs text-slate-400 text-right">{fillPct}% occupé</p>
+        <p className="text-[10px] text-slate-400 font-medium text-right">{fillPct}% occupé</p>
       </div>
 
-      <div className="space-y-1.5 text-sm border-t border-slate-100 pt-3">
-        <Row label="Rang" value={String(slot.rank)} />
+      <div className="space-y-2.5 text-sm border-t border-slate-100 pt-4">
+        <Row label="Rangée" value={String(slot.rank)} />
         <Row label="Côté" value={slot.side === 'L' ? 'Gauche' : 'Droite'} />
-        <Row label="Mise à jour" value={new Date(slot.updatedAt).toLocaleDateString('fr-FR')} />
+        <Row label="Dernier inventaire" value={new Date(slot.updatedAt).toLocaleDateString('fr-FR')} />
       </div>
 
       {!readonly && (
-        <div className="border-t border-slate-100 pt-3 space-y-2">
-          <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">Modifier le statut</p>
-          <div className="grid grid-cols-3 gap-1.5">
-            {(['FREE', 'PARTIAL', 'FULL'] as const).map((s) => (
+        <div className="border-t border-slate-100 pt-4 space-y-4">
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block ml-1">
+              Volume utilisé (m³)
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                min={0}
+                max={slot.totalVolume}
+                value={usedVolume}
+                onChange={(e) => setUsedVolume(Number(e.target.value))}
+                className="flex-1 bg-slate-50 border border-slate-200 rounded-lg h-9 px-3 text-sm font-medium text-slate-900 focus:bg-white focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 outline-none transition-all"
+              />
               <button
-                key={s}
-                disabled={slot.status === s}
-                className={`h-7 rounded-md text-xs font-medium transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${BADGE[s]} border ${
-                  s === 'FREE' ? 'border-green-200' : s === 'PARTIAL' ? 'border-amber-200' : 'border-red-200'
-                }`}
+                onClick={handleSave}
+                disabled={isSaving || usedVolume === slot.usedVolume}
+                className="h-9 px-3 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-100 text-white disabled:text-slate-400 rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm active:scale-95"
               >
-                {LABELS[s]}
+                {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                <span className="text-xs font-bold uppercase tracking-tight">Sauver</span>
               </button>
-            ))}
+            </div>
           </div>
-          <p className="text-xs text-slate-400 italic">Édition à brancher sur l'API</p>
+          
+          <div className="p-3 bg-blue-50/50 rounded-lg border border-blue-100">
+            <p className="text-[10px] text-blue-800 leading-relaxed font-medium">
+              L'ajustement du volume mettra automatiquement à jour le statut (Libre/Partiel/Plein) et les indicateurs globaux.
+            </p>
+          </div>
         </div>
       )}
     </div>
@@ -94,9 +158,9 @@ export default function SlotDetailPanel({ slot, readonly, onClose }: Props) {
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between">
-      <span className="text-slate-500">{label}</span>
-      <span className="text-slate-700">{value}</span>
+    <div className="flex justify-between items-center">
+      <span className="text-slate-500 font-medium text-xs">{label}</span>
+      <span className="text-slate-900 font-bold text-xs font-mono">{value}</span>
     </div>
   )
 }
