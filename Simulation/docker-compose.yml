@@ -1,0 +1,56 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: infflux_hackathon
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../backend/db/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d infflux_hackathon"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/infflux_hackathon
+      JWT_SECRET: super_secret_jwt_key_change_me
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  merchant-sim:
+    build:
+      context: ./simulators
+      dockerfile: Dockerfile
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      BACKEND_URL: http://api:3000
+      MERCHANT_EMAIL: marchand-a@example.com
+      MERCHANT_PASSWORD: Pass1234!
+      MERCHANT_COMPANY_NAME: Marchand A
+      MERCHANT_BILLING_ADDRESS: "12 rue Exemple, Paris"
+      MERCHANT_CONTACT_NAME: Jean Dupont
+      MERCHANT_CONTACT_PHONE: "0600000000"
+    restart: "no"
+
+volumes:
+  postgres_data:
