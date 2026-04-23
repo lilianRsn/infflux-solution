@@ -1,6 +1,6 @@
 import { getToken, saveToken } from '@/lib/auth'
 import type { Order } from '@/types/order'
-import type { LoginCredentials, LoginResponse } from '@/types/auth'
+import type { LoginCredentials, AuthSession } from '@/types/auth'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -34,15 +34,15 @@ async function fetchWithAuth<T>(
     return null as T
   }
 
-  return res.json() as Promise<T>
+  return await res.json() as T
 }
 
 export function getOrders(): Promise<Order[]> {
   return fetchWithAuth<Order[]>('/api/orders')
 }
 
-export async function login(credentials: LoginCredentials): Promise<LoginResponse> {
-  const response = await fetchWithAuth<LoginResponse>('/api/auth/login', {
+export async function login(credentials: LoginCredentials): Promise<AuthSession> {
+  const response = await fetchWithAuth<AuthSession>('/api/auth/login', {
     method: 'POST',
     body: JSON.stringify(credentials),
   })
