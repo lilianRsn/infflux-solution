@@ -809,6 +809,27 @@ const swaggerSpec = swaggerJSDoc({
                     }
                 }
             },
+            "/api/client-warehouses/{id}/occupancy-metrics": {
+                get: {
+                    tags: ["Client Warehouses"],
+                    summary: "Get occupancy KPI metrics for a warehouse",
+                    security: [{ bearerAuth: [] }],
+                    parameters: [
+                        {
+                            in: "path",
+                            name: "id",
+                            required: true,
+                            schema: { type: "string", format: "uuid" }
+                        }
+                    ],
+                    responses: {
+                        "200": { description: "Warehouse occupancy metrics" },
+                        "401": { description: "Unauthorized" },
+                        "403": { description: "Forbidden" },
+                        "404": { description: "Warehouse not found" }
+                    }
+                }
+            },
         }
     },
     apis: []

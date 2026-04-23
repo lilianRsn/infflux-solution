@@ -1,22 +1,23 @@
 import { Router } from "express";
 import requireRoles from "../../common/guards/roles.guard";
 import {
-  createAisleHandler,
-  createDockHandler,
-  createExteriorHandler,
-  createFloorHandler,
-  createParkingHandler,
-  createWarehouseHandler,
-  getAvailabilityHandler,
-  getAvailableDocksHandler,
-  getByClientHandler,
-  getExteriorHandler,
-  getLayoutHandler,
-  updateAisleHandler,
-  updateExteriorHandler,
-  updateFloorHandler,
-  updateParkingHandler,
-  updateWarehouseHandler
+    createAisleHandler,
+    createDockHandler,
+    createExteriorHandler,
+    createFloorHandler,
+    createParkingHandler,
+    createWarehouseHandler,
+    getAvailabilityHandler,
+    getOccupancyMetricsHandler,
+    getAvailableDocksHandler,
+    getByClientHandler,
+    getExteriorHandler,
+    getLayoutHandler,
+    updateAisleHandler,
+    updateExteriorHandler,
+    updateFloorHandler,
+    updateParkingHandler,
+    updateWarehouseHandler
 } from "./client-warehouses.controller";
 
 const router = Router();
@@ -37,15 +38,17 @@ router.post("/:id/loading-docks", requireRoles("admin", "client"), createDockHan
 
 router.post("/:id/parking-zones", requireRoles("admin", "client"), createParkingHandler);
 router.patch(
-  "/parking-zones/:parkingZoneId",
-  requireRoles("admin", "client"),
-  updateParkingHandler
+    "/parking-zones/:parkingZoneId",
+    requireRoles("admin", "client"),
+    updateParkingHandler
 );
 
 router.get("/availability", requireRoles("admin"), getAvailabilityHandler);
 router.get("/:id/layout", requireRoles("admin", "client"), getLayoutHandler);
 router.get("/:id/exterior", requireRoles("admin", "client"), getExteriorHandler);
 router.get("/:id/docks/available", requireRoles("admin", "client", "partner"), getAvailableDocksHandler);
+router.get("/:id/occupancy-metrics", requireRoles("admin", "client"), getOccupancyMetricsHandler);
+
 router.get("/:clientId", requireRoles("admin", "client"), getByClientHandler);
 
 export default router;
