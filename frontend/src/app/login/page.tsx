@@ -30,13 +30,13 @@ const ROLE_CONFIG: Record<Role, {
   admin: {
     label: 'Admin',
     icon: ShieldCheck,
-    activeClass: 'border-blue-600 bg-blue-50 text-blue-700',
+    activeClass: 'border-blue-700 bg-blue-600 text-white',
     hint: { email: 'admin@infflux.com', password: 'admin123' },
   },
   partenaire: {
     label: 'Partenaire',
     icon: Truck,
-    activeClass: 'border-green-600 bg-green-50 text-green-700',
+    activeClass: 'border-green-700 bg-green-600 text-white',
     hint: { email: 'partenaire@translog.com', password: 'partenaire123' },
   },
 }

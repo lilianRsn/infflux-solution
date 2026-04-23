@@ -11,13 +11,23 @@ import SlotDetailPanel from './interior/SlotDetailPanel'
 interface Props {
   readonly warehouse: ClientWarehouse
   readonly readonly: boolean
+  readonly onSlotUpdate: (slot: StorageSlot) => void
 }
 
-export default function InteriorTab({ warehouse, readonly }: Props) {
+export default function InteriorTab({ warehouse, readonly, onSlotUpdate }: Props) {
   const [selectedFloorId, setSelectedFloorId] = useState(warehouse.floors[0].id)
-  const [selectedSlot, setSelectedSlot] = useState<StorageSlot | null>(null)
+  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null)
 
   const floor = warehouse.floors.find((f) => f.id === selectedFloorId) ?? warehouse.floors[0]
+  
+  // Find the fresh slot data from the warehouse state
+  const selectedSlot = selectedSlotId 
+    ? floor.aisles.flatMap(a => a.slots).find(s => s.id === selectedSlotId) ?? null
+    : null
+
+  const handleSlotSelect = (slot: StorageSlot | null) => {
+    setSelectedSlotId(slot?.id ?? null)
+  }
 
   return (
     <div className="space-y-4">
@@ -25,7 +35,7 @@ export default function InteriorTab({ warehouse, readonly }: Props) {
         <FloorSelector
           floors={warehouse.floors}
           selectedId={selectedFloorId}
-          onSelect={(id) => { setSelectedFloorId(id); setSelectedSlot(null) }}
+          onSelect={(id) => { setSelectedFloorId(id); setSelectedSlotId(null) }}
         />
         <OccupancyLegend />
       </div>
@@ -37,11 +47,16 @@ export default function InteriorTab({ warehouse, readonly }: Props) {
           <WarehouseFloorPlan
             floor={floor}
             selectedSlot={selectedSlot}
-            onSlotSelect={setSelectedSlot}
+            onSlotSelect={handleSlotSelect}
           />
         </div>
-        <div className="w-64 shrink-0 bg-white rounded-xl border border-slate-200 min-h-[300px]">
-          <SlotDetailPanel slot={selectedSlot} readonly={readonly} onClose={() => setSelectedSlot(null)} />
+        <div className="w-72 shrink-0 bg-white rounded-xl border border-slate-200 min-h-[400px]">
+          <SlotDetailPanel 
+            slot={selectedSlot} 
+            readonly={readonly} 
+            onClose={() => setSelectedSlotId(null)}
+            onUpdate={onSlotUpdate}
+          />
         </div>
       </div>
     </div>
