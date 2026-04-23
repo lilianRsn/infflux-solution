@@ -12,14 +12,30 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'exterior', label: 'Extérieur' },
 ]
 
-export default function WarehouseLayout({ warehouse }: { warehouse: ClientWarehouse }) {
+interface Props {
+  readonly warehouse: ClientWarehouse
+  readonly readonly: boolean
+}
+
+export default function WarehouseLayout({ warehouse, readonly }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('interior')
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-xl font-bold text-slate-800">{warehouse.name}</h2>
-        <p className="text-sm text-slate-500">{warehouse.address}</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-slate-800">{warehouse.name}</h2>
+          <p className="text-sm text-slate-500">{warehouse.address}</p>
+        </div>
+        {readonly ? (
+          <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200 font-medium">
+            Lecture seule
+          </span>
+        ) : (
+          <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-medium">
+            Mode gestion
+          </span>
+        )}
       </div>
 
       <div className="border-b border-slate-200">
@@ -41,9 +57,9 @@ export default function WarehouseLayout({ warehouse }: { warehouse: ClientWareho
       </div>
 
       {activeTab === 'interior' ? (
-        <InteriorTab warehouse={warehouse} />
+        <InteriorTab warehouse={warehouse} readonly={readonly} />
       ) : (
-        <ExteriorTab warehouse={warehouse} />
+        <ExteriorTab warehouse={warehouse} readonly={readonly} />
       )}
     </div>
   )

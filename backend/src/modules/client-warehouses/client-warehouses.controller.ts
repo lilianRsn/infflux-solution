@@ -1,0 +1,228 @@
+import { Request, Response } from "express";
+import { AppError } from "../../common/errors/app-error";
+import {
+  createAisle,
+  createDock,
+  createExterior,
+  createFloor,
+  createParkingZone,
+  createWarehouse,
+  getAvailability,
+  getAvailableDocks,
+  getWarehouseExterior,
+  getWarehouseLayout,
+  getWarehousesByClient,
+  updateAisle,
+  updateExterior,
+  updateFloor,
+  updateParkingZone,
+  updateWarehouse
+} from "./client-warehouses.service";
+import {
+  CreateAisleBody,
+  CreateDockBody,
+  CreateExteriorBody,
+  CreateFloorBody,
+  CreateParkingBody,
+  CreateWarehouseBody,
+  PatchAisleBody,
+  PatchExteriorBody,
+  PatchFloorBody,
+  PatchParkingBody,
+  PatchWarehouseBody
+} from "./client-warehouses.types";
+
+const fail = (res: Response, e: unknown) =>
+  e instanceof AppError
+    ? res.status(e.statusCode).json({ message: e.message })
+    : res.status(500).json({
+        message: e instanceof Error ? e.message : "Internal server error"
+      });
+
+export const createWarehouseHandler = async (
+  req: Request<{}, {}, CreateWarehouseBody>,
+  res: Response
+) => {
+  try {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    return res.status(201).json(await createWarehouse(req.body, req.user));
+  } catch (e) {
+    return fail(res, e);
+  }
+};
+
+export const updateWarehouseHandler = async (
+  req: Request<{ id: string }, {}, PatchWarehouseBody>,
+  res: Response
+) => {
+  try {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    return res.json(await updateWarehouse(req.params.id, req.body, req.user));
+  } catch (e) {
+    return fail(res, e);
+  }
+};
+
+export const createFloorHandler = async (
+  req: Request<{ id: string }, {}, CreateFloorBody>,
+  res: Response
+) => {
+  try {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    return res.status(201).json(await createFloor(req.params.id, req.body, req.user));
+  } catch (e) {
+    return fail(res, e);
+  }
+};
+
+export const updateFloorHandler = async (
+  req: Request<{ floorId: string }, {}, PatchFloorBody>,
+  res: Response
+) => {
+  try {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    return res.json(await updateFloor(req.params.floorId, req.body, req.user));
+  } catch (e) {
+    return fail(res, e);
+  }
+};
+
+export const createAisleHandler = async (
+  req: Request<{ floorId: string }, {}, CreateAisleBody>,
+  res: Response
+) => {
+  try {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    return res.status(201).json(await createAisle(req.params.floorId, req.body, req.user));
+  } catch (e) {
+    return fail(res, e);
+  }
+};
+
+export const updateAisleHandler = async (
+  req: Request<{ aisleId: string }, {}, PatchAisleBody>,
+  res: Response
+) => {
+  try {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    return res.json(await updateAisle(req.params.aisleId, req.body, req.user));
+  } catch (e) {
+    return fail(res, e);
+  }
+};
+
+export const createExteriorHandler = async (
+  req: Request<{ id: string }, {}, CreateExteriorBody>,
+  res: Response
+) => {
+  try {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    return res.status(201).json(await createExterior(req.params.id, req.body, req.user));
+  } catch (e) {
+    return fail(res, e);
+  }
+};
+
+export const updateExteriorHandler = async (
+  req: Request<{ id: string }, {}, PatchExteriorBody>,
+  res: Response
+) => {
+  try {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    return res.json(await updateExterior(req.params.id, req.body, req.user));
+  } catch (e) {
+    return fail(res, e);
+  }
+};
+
+export const createDockHandler = async (
+  req: Request<{ id: string }, {}, CreateDockBody>,
+  res: Response
+) => {
+  try {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    return res.status(201).json(await createDock(req.params.id, req.body, req.user));
+  } catch (e) {
+    return fail(res, e);
+  }
+};
+
+export const createParkingHandler = async (
+  req: Request<{ id: string }, {}, CreateParkingBody>,
+  res: Response
+) => {
+  try {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    return res.status(201).json(await createParkingZone(req.params.id, req.body, req.user));
+  } catch (e) {
+    return fail(res, e);
+  }
+};
+
+export const updateParkingHandler = async (
+  req: Request<{ parkingZoneId: string }, {}, PatchParkingBody>,
+  res: Response
+) => {
+  try {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    return res.json(await updateParkingZone(req.params.parkingZoneId, req.body, req.user));
+  } catch (e) {
+    return fail(res, e);
+  }
+};
+
+export const getByClientHandler = async (
+  req: Request<{ clientId: string }>,
+  res: Response
+) => {
+  try {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    return res.json(await getWarehousesByClient(req.params.clientId, req.user));
+  } catch (e) {
+    return fail(res, e);
+  }
+};
+
+export const getLayoutHandler = async (
+  req: Request<{ id: string }>,
+  res: Response
+) => {
+  try {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    return res.json(await getWarehouseLayout(req.params.id, req.user));
+  } catch (e) {
+    return fail(res, e);
+  }
+};
+
+export const getExteriorHandler = async (
+  req: Request<{ id: string }>,
+  res: Response
+) => {
+  try {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    return res.json(await getWarehouseExterior(req.params.id, req.user));
+  } catch (e) {
+    return fail(res, e);
+  }
+};
+
+export const getAvailableDocksHandler = async (
+  req: Request<{ id: string }>,
+  res: Response
+) => {
+  try {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    return res.json(await getAvailableDocks(req.params.id, req.user));
+  } catch (e) {
+    return fail(res, e);
+  }
+};
+
+export const getAvailabilityHandler = async (_req: Request, res: Response) => {
+  try {
+    return res.json(await getAvailability());
+  } catch (e) {
+    return fail(res, e);
+  }
+};

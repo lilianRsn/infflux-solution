@@ -1,11 +1,21 @@
-export default function ClientCommande() {
+import { redirect } from 'next/navigation'
+import { getSessionUser } from '@/lib/server-auth'
+import Navbar from '@/components/layout/Navbar'
+
+export default async function ClientCommande() {
+  const user = await getSessionUser()
+  if (!user) redirect('/login')
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#0a0a0f] px-4">
-      <div className="text-center">
-        <p className="mb-2 text-sm uppercase tracking-[0.24em] text-sky-400">Client</p>
-        <h1 className="text-3xl font-bold text-white">Passer une commande</h1>
-        <p className="mt-2 text-zinc-500">Interface client a completer</p>
+    <div className="min-h-screen bg-slate-50">
+      <Navbar user={user} />
+      <div className="flex items-center justify-center min-h-[calc(100vh-3.5rem)]">
+        <div className="text-center">
+          <p className="text-xs text-slate-500 font-medium uppercase tracking-widest mb-2">Client</p>
+          <h1 className="text-2xl font-semibold text-slate-900">Passer une commande</h1>
+          <p className="mt-2 text-slate-500 text-sm">Interface client à compléter</p>
+        </div>
       </div>
     </div>
-  );
+  )
 }
