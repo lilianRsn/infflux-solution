@@ -2,7 +2,7 @@ import { ApiClient, ApiError } from "../shared/api-client";
 import { loadEnv } from "../shared/config";
 import { makeLogger } from "../shared/logger";
 import { makeRng } from "../shared/rng";
-import { registerIfNew, login } from "../shared/auth";
+import { ensureAuthenticated } from "../shared/auth";
 import { runTicks } from "../shared/tick-loop";
 
 import { MerchantScenario } from "./scenarios/default";
@@ -38,7 +38,7 @@ export async function runMerchant(scenario: MerchantScenario): Promise<RunReport
 
   log.info("boot", { backend: env.backendUrl, seed: scenario.seed });
 
-  const registerStatus = await registerIfNew(client, {
+  const auth = await ensureAuthenticated(client, {
     email: scenario.credentials.email,
     password: scenario.credentials.password,
     role: "client",
@@ -48,14 +48,11 @@ export async function runMerchant(scenario: MerchantScenario): Promise<RunReport
     main_contact_phone: scenario.identity.main_contact_phone,
     main_contact_email: scenario.identity.main_contact_email
   });
-  log.info("register", { status: registerStatus });
-
-  const loginRes = await login(
-    client,
-    scenario.credentials.email,
-    scenario.credentials.password
-  );
-  log.info("login", { user_id: loginRes.user.id, role: loginRes.user.role });
+  log.info("authenticated", {
+    outcome: auth.outcome,
+    user_id: auth.user.id,
+    role: auth.user.role
+  });
 
   const stock = buildStock(rng, scenario.stock_init);
   log.info("stock_initial", { snapshot: snapshotStock(stock) });
