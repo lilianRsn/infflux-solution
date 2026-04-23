@@ -13,11 +13,12 @@ type PlanningIssue = PlanningBlockReason | "REMAINING_PALLETS_NOT_SCHEDULED";
 
 type TruckRow = {
     id: string;
-    code: string;
-    max_pallets: number;
+    name: string;
+    license_plate: string;
+    max_palettes: number;
     max_volume_m3: number;
     max_weight_kg: number;
-    status: "AVAILABLE" | "IN_DELIVERY" | "MAINTENANCE";
+    status: "AVAILABLE" | "ON_ROUTE" | "LOADING" | "MAINTENANCE";
 };
 
 type DockRow = {
@@ -48,9 +49,9 @@ function addDaysToDateString(dateInput: string | Date, days: number) {
 
 function getMaxTruckCapacityForSlot(availableTrucks: TruckRow[], availableDockCount: number) {
     return [...availableTrucks]
-        .sort((a, b) => Number(b.max_pallets) - Number(a.max_pallets))
+        .sort((a, b) => Number(b.max_palettes) - Number(a.max_palettes))
         .slice(0, availableDockCount)
-        .reduce((sum, truck) => sum + Number(truck.max_pallets), 0);
+        .reduce((sum, truck) => sum + Number(truck.max_palettes), 0);
 }
 
 function selectTrucks(
@@ -66,16 +67,16 @@ function selectTrucks(
     }
 
     const sorted = [...availableTrucks].sort(
-        (a, b) => Number(b.max_pallets) - Number(a.max_pallets)
+        (a, b) => Number(b.max_palettes) - Number(a.max_palettes)
     );
     const dockLimited = sorted.slice(0, availableDockCount);
 
     const totalAllTruckCapacity = sorted.reduce(
-        (sum, truck) => sum + Number(truck.max_pallets),
+        (sum, truck) => sum + Number(truck.max_palettes),
         0
     );
     const totalDockLimitedCapacity = dockLimited.reduce(
-        (sum, truck) => sum + Number(truck.max_pallets),
+        (sum, truck) => sum + Number(truck.max_palettes),
         0
     );
 
@@ -99,7 +100,7 @@ function selectTrucks(
     for (const truck of dockLimited) {
         if (remaining <= 0) break;
 
-        const assignedPallets = Math.min(Number(truck.max_pallets), remaining);
+        const assignedPallets = Math.min(Number(truck.max_palettes), remaining);
         if (assignedPallets > 0) {
             selected.push({ truck, assignedPallets });
             remaining -= assignedPallets;
@@ -190,7 +191,7 @@ async function getAvailableTrucksForSlot(
             OR dp.planned_time_window = $2
           )
       )
-    ORDER BY max_pallets DESC, code ASC
+    ORDER BY max_palettes DESC, name ASC
     `,
         [plannedDate, plannedTimeWindow]
     );
@@ -440,7 +441,7 @@ export async function generateDeliveryPlans() {
                     order_id: order.id,
                     order_number: order.order_number,
                     allocated_pallets: palletsToAllocate,
-                    trucks: selection.selected.map((item) => item.truck.code),
+                    trucks: selection.selected.map((item) => item.truck.name),
                     assigned_docks: assignedDockCodes,
                     planned_delivery_date: plannedDate,
                     planned_time_window: plannedTimeWindow
@@ -594,8 +595,9 @@ export async function getDeliveryPlanById(planId: string) {
         `
     SELECT
       t.id,
-      t.code,
-      t.max_pallets,
+      t.name,
+      t.license_plate,
+      t.max_palettes,
       t.max_volume_m3,
       t.max_weight_kg,
       t.status,
@@ -604,7 +606,7 @@ export async function getDeliveryPlanById(planId: string) {
     FROM delivery_plan_trucks dpt
     JOIN trucks t ON t.id = dpt.truck_id
     WHERE dpt.delivery_plan_id = $1
-    ORDER BY t.code ASC
+    ORDER BY t.name ASC
     `,
         [planId]
     );
@@ -618,7 +620,7 @@ export async function getDeliveryPlanById(planId: string) {
       ld.position_x,
       ld.position_y,
       t.id AS truck_id,
-      t.code AS truck_code
+      t.name AS truck_code
     FROM delivery_plan_docks dpd
     JOIN loading_docks ld ON ld.id = dpd.loading_dock_id
     JOIN trucks t ON t.id = dpd.truck_id
@@ -704,7 +706,7 @@ export async function updateDeliveryPlanStatus(
                 await dbClient.query(
                     `
           UPDATE trucks
-          SET status = 'IN_DELIVERY',
+          SET status = 'ON_ROUTE',
               updated_at = NOW()
           WHERE id = $1
           `,

@@ -1,15 +1,27 @@
+export type TruckStatus = "AVAILABLE" | "ON_ROUTE" | "LOADING" | "MAINTENANCE";
+
 export interface CreateTruckBody {
-  code: string;
-  max_pallets: number;
-  max_volume_m3?: number;
+  name: string;
+  license_plate: string;
+  max_palettes?: number;
   max_weight_kg?: number;
-  status?: "AVAILABLE" | "IN_DELIVERY" | "MAINTENANCE";
+  max_volume_m3?: number;
+  status?: TruckStatus;
+  current_route?: string;
+  fill_percent?: number;
+  driver_name?: string;
+  notes?: string;
 }
 
 export interface UpdateTruckBody {
-  code?: string;
-  max_pallets?: number;
-  max_volume_m3?: number;
+  name?: string;
+  license_plate?: string;
+  max_palettes?: number;
   max_weight_kg?: number;
-  status?: "AVAILABLE" | "IN_DELIVERY" | "MAINTENANCE";
+  max_volume_m3?: number;
+  status?: TruckStatus;
+  current_route?: string | null;
+  fill_percent?: number;
+  driver_name?: string | null;
+  notes?: string | null;
 }
