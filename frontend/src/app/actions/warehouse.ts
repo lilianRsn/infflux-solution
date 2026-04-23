@@ -1,7 +1,7 @@
 'use server'
 
 import { cookies } from 'next/headers'
-import { revalidatePath } from 'next/cache'
+import type { WarehouseConfig } from '@/lib/warehouse-store'
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001'
 
@@ -16,7 +16,7 @@ async function getAuthHeaders() {
 
 export async function updateStorageSlot(slotId: string, data: { used_volume: number, status: string }) {
   const headers = await getAuthHeaders()
-  
+
   const res = await fetch(`${BACKEND_URL}/api/storage-slots/${slotId}`, {
     method: 'PATCH',
     headers,
@@ -24,20 +24,16 @@ export async function updateStorageSlot(slotId: string, data: { used_volume: num
   })
 
   if (!res.ok) {
-    throw new Error('Failed to update slot')
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.message || 'Failed to update slot')
   }
 
-  const updatedSlot = await res.json()
-  
-  // We can revalidate paths if we want to refresh server data
-  // revalidatePath('/client/warehouses')
-  
-  return updatedSlot
+  return res.json()
 }
 
 export async function createWarehouse(data: any) {
   const headers = await getAuthHeaders()
-  
+
   const res = await fetch(`${BACKEND_URL}/api/client-warehouses`, {
     method: 'POST',
     headers,
@@ -50,4 +46,45 @@ export async function createWarehouse(data: any) {
   }
 
   return res.json()
+}
+
+export async function syncWarehouseLayout(warehouseId: string, cfg: WarehouseConfig) {
+  const headers = await getAuthHeaders()
+
+  for (const [fi, floor] of cfg.floors.entries()) {
+    const floorRes = await fetch(`${BACKEND_URL}/api/client-warehouses/${warehouseId}/floors`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ level: fi, label: floor.label }),
+    })
+    if (!floorRes.ok) throw new Error('Failed to create floor')
+    const { id: floorId } = await floorRes.json()
+
+    for (const [ai, aisle] of floor.aisles.entries()) {
+      const aisleRes = await fetch(`${BACKEND_URL}/api/client-warehouses/floors/${floorId}/aisles`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ code: aisle.code, position_x: ai, position_y: 0 }),
+      })
+      if (!aisleRes.ok) throw new Error('Failed to create aisle')
+      const { id: aisleId } = await aisleRes.json()
+
+      for (let rank = 1; rank <= aisle.ranks; rank++) {
+        for (const side of ['L', 'R'] as const) {
+          const slotRes = await fetch(`${BACKEND_URL}/api/storage-slots`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              aisle_id: aisleId,
+              rank: String(rank),
+              side,
+              total_volume: cfg.slotVolume,
+              status: 'FREE',
+            }),
+          })
+          if (!slotRes.ok) throw new Error('Failed to create slot')
+        }
+      }
+    }
+  }
 }

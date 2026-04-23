@@ -9,6 +9,8 @@ type PlanningBlockReason =
   | "NO_AVAILABLE_TRUCK"
   | "TRUCK_CAPACITY_TOO_LOW";
 
+type PlanningIssue = PlanningBlockReason | "REMAINING_PALLETS_NOT_SCHEDULED";
+
 type TruckRow = {
   id: string;
   code: string;
@@ -24,10 +26,18 @@ function getPriorityScore(priority: Priority) {
   return 20;
 }
 
-function getUrgencySortValue(priority: Priority) {
-  if (priority === "urgent") return 0;
-  if (priority === "standard") return 1;
-  return 2;
+function addDaysToDateString(dateString: string, days: number) {
+  const [year, month, day] = dateString.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().split("T")[0];
+}
+
+function getMaxTruckCapacityForDate(availableTrucks: TruckRow[], usableDocks: number) {
+  return [...availableTrucks]
+    .sort((a, b) => Number(b.max_pallets) - Number(a.max_pallets))
+    .slice(0, usableDocks)
+    .reduce((sum, truck) => sum + Number(truck.max_pallets), 0);
 }
 
 function selectTrucks(
@@ -36,24 +46,38 @@ function selectTrucks(
   usableDocks: number
 ) {
   if (usableDocks <= 0) {
-    return { selected: [] as Array<{ truck: TruckRow; assignedPallets: number }>, reason: "INSUFFICIENT_DOCK_CAPACITY" as PlanningBlockReason };
+    return {
+      selected: [] as Array<{ truck: TruckRow; assignedPallets: number }>,
+      reason: "INSUFFICIENT_DOCK_CAPACITY" as PlanningBlockReason
+    };
   }
 
-  const sorted = [...availableTrucks].sort((a, b) => b.max_pallets - a.max_pallets);
+  const sorted = [...availableTrucks].sort(
+    (a, b) => Number(b.max_pallets) - Number(a.max_pallets)
+  );
   const byDockCapacity = sorted.slice(0, usableDocks);
 
-  const totalAllTruckCapacity = sorted.reduce((sum, truck) => sum + Number(truck.max_pallets), 0);
+  const totalAllTruckCapacity = sorted.reduce(
+    (sum, truck) => sum + Number(truck.max_pallets),
+    0
+  );
   const totalDockLimitedCapacity = byDockCapacity.reduce(
     (sum, truck) => sum + Number(truck.max_pallets),
     0
   );
 
   if (totalAllTruckCapacity < totalPallets) {
-    return { selected: [] as Array<{ truck: TruckRow; assignedPallets: number }>, reason: "NO_AVAILABLE_TRUCK" as PlanningBlockReason };
+    return {
+      selected: [] as Array<{ truck: TruckRow; assignedPallets: number }>,
+      reason: "NO_AVAILABLE_TRUCK" as PlanningBlockReason
+    };
   }
 
   if (totalDockLimitedCapacity < totalPallets) {
-    return { selected: [] as Array<{ truck: TruckRow; assignedPallets: number }>, reason: "INSUFFICIENT_DOCK_CAPACITY" as PlanningBlockReason };
+    return {
+      selected: [] as Array<{ truck: TruckRow; assignedPallets: number }>,
+      reason: "INSUFFICIENT_DOCK_CAPACITY" as PlanningBlockReason
+    };
   }
 
   let remaining = totalPallets;
@@ -70,7 +94,10 @@ function selectTrucks(
   }
 
   if (remaining > 0) {
-    return { selected: [] as Array<{ truck: TruckRow; assignedPallets: number }>, reason: "TRUCK_CAPACITY_TOO_LOW" as PlanningBlockReason };
+    return {
+      selected: [] as Array<{ truck: TruckRow; assignedPallets: number }>,
+      reason: "TRUCK_CAPACITY_TOO_LOW" as PlanningBlockReason
+    };
   }
 
   return { selected, reason: null as PlanningBlockReason | null };
@@ -79,9 +106,8 @@ function selectTrucks(
 async function getWarehousePlanningConstraints(
   dbClient: PoolClient,
   clientWarehouseId: string,
-  requestedDate: string
+  plannedDate: string
 ) {
-
   const capacityResult = await dbClient.query(
     `
     SELECT
@@ -106,7 +132,7 @@ async function getWarehousePlanningConstraints(
       AND planned_delivery_date = $2
       AND status IN ('DRAFT', 'CONFIRMED', 'IN_PROGRESS')
     `,
-    [clientWarehouseId, requestedDate]
+    [clientWarehouseId, plannedDate]
   );
 
   const capacity = capacityResult.rows[0];
@@ -124,6 +150,27 @@ async function getWarehousePlanningConstraints(
     usableDocks,
     remainingStoragePallets: maxCapacityPallets - usedPallets - reservedPallets
   };
+}
+
+async function getAvailableTrucksForDate(dbClient: PoolClient, plannedDate: string) {
+  const result = await dbClient.query(
+    `
+    SELECT *
+    FROM trucks
+    WHERE status = 'AVAILABLE'
+      AND id NOT IN (
+        SELECT dpt.truck_id
+        FROM delivery_plan_trucks dpt
+        JOIN delivery_plans dp ON dp.id = dpt.delivery_plan_id
+        WHERE dp.planned_delivery_date = $1
+          AND dp.status IN ('DRAFT', 'CONFIRMED', 'IN_PROGRESS')
+      )
+    ORDER BY max_pallets DESC, code ASC
+    `,
+    [plannedDate]
+  );
+
+  return result.rows as TruckRow[];
 }
 
 export async function generateDeliveryPlans() {
@@ -151,160 +198,224 @@ export async function generateDeliveryPlans() {
       `
     );
 
-    const availableTrucksResult = await dbClient.query(
-      `
-      SELECT *
-      FROM trucks
-      WHERE status = 'AVAILABLE'
-      ORDER BY max_pallets DESC, code ASC
-      `
-    );
-
-    const availableTrucks: TruckRow[] = availableTrucksResult.rows;
     const generatedPlans: Array<{
       delivery_plan_id: string;
       order_id: string;
       order_number: string;
+      allocated_pallets: number;
       trucks: string[];
       planned_delivery_date: string;
+      planned_time_window: "morning" | "afternoon" | "full_day";
     }> = [];
+
     const blockedOrders: Array<{
       order_id: string;
       order_number: string;
-      blocked_reason: PlanningBlockReason;
+      blocked_reason: PlanningIssue;
+    }> = [];
+
+    const partiallyPlannedOrders: Array<{
+      order_id: string;
+      order_number: string;
+      remaining_pallets: number;
+      blocked_reason: PlanningIssue;
     }> = [];
 
     for (const order of ordersResult.rows) {
-      const constraints = await getWarehousePlanningConstraints(
-        dbClient,
-        order.client_warehouse_id,
-        order.requested_delivery_date
-      );
+      let remainingPallets = Number(order.total_pallets);
+      let firstPlannedDate: string | null = null;
+      let allocationsCreated = 0;
+      let lastIssue: PlanningIssue = "NO_AVAILABLE_TRUCK";
 
-      if (constraints.remainingStoragePallets < Number(order.total_pallets)) {
-        await dbClient.query(
-          `
-          UPDATE orders
-          SET planning_status = 'BLOCKED',
-              blocked_reason = 'INSUFFICIENT_CLIENT_STORAGE'
-          WHERE id = $1
-          `,
-          [order.id]
-        );
+      const splitAllowed = Boolean(order.split_delivery_allowed);
+      const planningHorizonDays = splitAllowed ? 7 : 1;
 
-        blockedOrders.push({
-          order_id: order.id,
-          order_number: order.order_number,
-          blocked_reason: "INSUFFICIENT_CLIENT_STORAGE"
-        });
+      for (
+        let dayOffset = 0;
+        dayOffset < planningHorizonDays && remainingPallets > 0;
+        dayOffset++
+      ) {
+        const plannedDate = addDaysToDateString(order.requested_delivery_date, dayOffset);
 
-        continue;
-      }
-
-      const selection = selectTrucks(
-        availableTrucks,
-        Number(order.total_pallets),
-        constraints.usableDocks
-      );
-
-      if (selection.reason) {
-        await dbClient.query(
-          `
-          UPDATE orders
-          SET planning_status = 'BLOCKED',
-              blocked_reason = $2
-          WHERE id = $1
-          `,
-          [order.id, selection.reason]
-        );
-
-        blockedOrders.push({
-          order_id: order.id,
-          order_number: order.order_number,
-          blocked_reason: selection.reason
-        });
-
-        continue;
-      }
-
-      const deliveryPlanResult = await dbClient.query(
-        `
-        INSERT INTO delivery_plans (
-          planned_delivery_date,
-          client_warehouse_id,
-          status,
-          total_pallets,
-          total_volume_m3,
-          priority_score
-        )
-        VALUES ($1, $2, 'DRAFT', $3, 0, $4)
-        RETURNING *
-        `,
-        [
-          order.requested_delivery_date,
+        const constraints = await getWarehousePlanningConstraints(
+          dbClient,
           order.client_warehouse_id,
-          Number(order.total_pallets),
-          getPriorityScore(order.urgency_level as Priority)
-        ]
-      );
-
-      const deliveryPlan = deliveryPlanResult.rows[0];
-
-      await dbClient.query(
-        `
-        INSERT INTO delivery_plan_orders (delivery_plan_id, order_id)
-        VALUES ($1, $2)
-        `,
-        [deliveryPlan.id, order.id]
-      );
-
-      for (const { truck, assignedPallets } of selection.selected) {
-        await dbClient.query(
-          `
-          INSERT INTO delivery_plan_trucks (
-            delivery_plan_id,
-            truck_id,
-            assigned_pallets,
-            assigned_volume_m3
-          )
-          VALUES ($1, $2, $3, 0)
-          `,
-          [deliveryPlan.id, truck.id, assignedPallets]
+          plannedDate
         );
 
+        if (constraints.remainingStoragePallets <= 0) {
+          lastIssue = "INSUFFICIENT_CLIENT_STORAGE";
+          continue;
+        }
+
+        if (constraints.usableDocks <= 0) {
+          lastIssue = "INSUFFICIENT_DOCK_CAPACITY";
+          continue;
+        }
+
+        const availableTrucks = await getAvailableTrucksForDate(dbClient, plannedDate);
+
+        if (!availableTrucks.length) {
+          lastIssue = "NO_AVAILABLE_TRUCK";
+          continue;
+        }
+
+        const maxTruckCapacityForDate = getMaxTruckCapacityForDate(
+          availableTrucks,
+          constraints.usableDocks
+        );
+
+        if (maxTruckCapacityForDate <= 0) {
+          lastIssue = "INSUFFICIENT_DOCK_CAPACITY";
+          continue;
+        }
+
+        const palletsToAllocate = splitAllowed
+          ? Math.min(
+              remainingPallets,
+              constraints.remainingStoragePallets,
+              maxTruckCapacityForDate
+            )
+          : remainingPallets;
+
+        if (palletsToAllocate <= 0) {
+          lastIssue = "INSUFFICIENT_CLIENT_STORAGE";
+          continue;
+        }
+
+        const selection = selectTrucks(
+          availableTrucks,
+          palletsToAllocate,
+          constraints.usableDocks
+        );
+
+        if (selection.reason) {
+          lastIssue = selection.reason;
+          if (!splitAllowed) break;
+          continue;
+        }
+
+        const deliveryPlanResult = await dbClient.query(
+          `
+          INSERT INTO delivery_plans (
+            planned_delivery_date,
+            planned_time_window,
+            client_warehouse_id,
+            status,
+            total_pallets,
+            total_volume_m3,
+            priority_score
+          )
+          VALUES ($1, $2, $3, 'DRAFT', $4, 0, $5)
+          RETURNING *
+          `,
+          [
+            plannedDate,
+            order.delivery_time_window,
+            order.client_warehouse_id,
+            palletsToAllocate,
+            getPriorityScore(order.urgency_level as Priority)
+          ]
+        );
+
+        const deliveryPlan = deliveryPlanResult.rows[0];
+
         await dbClient.query(
           `
-          UPDATE trucks
-          SET status = 'IN_DELIVERY',
-              updated_at = NOW()
+          INSERT INTO delivery_plan_orders (delivery_plan_id, order_id, allocated_pallets)
+          VALUES ($1, $2, $3)
+          `,
+          [deliveryPlan.id, order.id, palletsToAllocate]
+        );
+
+        for (const { truck, assignedPallets } of selection.selected) {
+          await dbClient.query(
+            `
+            INSERT INTO delivery_plan_trucks (
+              delivery_plan_id,
+              truck_id,
+              assigned_pallets,
+              assigned_volume_m3
+            )
+            VALUES ($1, $2, $3, 0)
+            `,
+            [deliveryPlan.id, truck.id, assignedPallets]
+          );
+        }
+
+        generatedPlans.push({
+          delivery_plan_id: deliveryPlan.id,
+          order_id: order.id,
+          order_number: order.order_number,
+          allocated_pallets: palletsToAllocate,
+          trucks: selection.selected.map((item) => item.truck.code),
+          planned_delivery_date: plannedDate,
+          planned_time_window: order.delivery_time_window
+        });
+
+        remainingPallets -= palletsToAllocate;
+        allocationsCreated += 1;
+
+        if (!firstPlannedDate) {
+          firstPlannedDate = plannedDate;
+        }
+
+        if (!splitAllowed) {
+          break;
+        }
+      }
+
+      if (remainingPallets === 0) {
+        await dbClient.query(
+          `
+          UPDATE orders
+          SET planning_status = 'PLANNED',
+              blocked_reason = NULL,
+              planned_delivery_date = $2
           WHERE id = $1
           `,
-          [truck.id]
+          [order.id, firstPlannedDate]
         );
 
-        const truckIndex = availableTrucks.findIndex((item) => item.id === truck.id);
-        if (truckIndex >= 0) {
-          availableTrucks.splice(truckIndex, 1);
-        }
+        continue;
+      }
+
+      if (allocationsCreated > 0) {
+        await dbClient.query(
+          `
+          UPDATE orders
+          SET planning_status = 'PARTIALLY_PLANNED',
+              blocked_reason = 'REMAINING_PALLETS_NOT_SCHEDULED',
+              planned_delivery_date = $2
+          WHERE id = $1
+          `,
+          [order.id, firstPlannedDate]
+        );
+
+        partiallyPlannedOrders.push({
+          order_id: order.id,
+          order_number: order.order_number,
+          remaining_pallets: remainingPallets,
+          blocked_reason: "REMAINING_PALLETS_NOT_SCHEDULED"
+        });
+
+        continue;
       }
 
       await dbClient.query(
         `
         UPDATE orders
-        SET planning_status = 'PLANNED',
-            blocked_reason = NULL,
-            planned_delivery_date = $2
+        SET planning_status = 'BLOCKED',
+            blocked_reason = $2
         WHERE id = $1
         `,
-        [order.id, order.requested_delivery_date]
+        [order.id, lastIssue]
       );
 
-      generatedPlans.push({
-        delivery_plan_id: deliveryPlan.id,
+      blockedOrders.push({
         order_id: order.id,
         order_number: order.order_number,
-        trucks: selection.selected.map((item) => item.truck.code),
-        planned_delivery_date: order.requested_delivery_date
+        blocked_reason: lastIssue
       });
     }
 
@@ -313,8 +424,10 @@ export async function generateDeliveryPlans() {
     return {
       generated_count: generatedPlans.length,
       blocked_count: blockedOrders.length,
+      partially_planned_count: partiallyPlannedOrders.length,
       generated_plans: generatedPlans,
-      blocked_orders: blockedOrders
+      blocked_orders: blockedOrders,
+      partially_planned_orders: partiallyPlannedOrders
     };
   } catch (error) {
     await dbClient.query("ROLLBACK");
@@ -369,9 +482,11 @@ export async function getDeliveryPlanById(planId: string) {
       o.order_number,
       o.company_name,
       o.requested_delivery_date,
+      o.delivery_time_window,
       o.urgency_level,
       o.total_pallets,
-      o.planning_status
+      o.planning_status,
+      dpo.allocated_pallets
     FROM delivery_plan_orders dpo
     JOIN orders o ON o.id = dpo.order_id
     WHERE dpo.delivery_plan_id = $1
@@ -448,6 +563,20 @@ export async function updateDeliveryPlanStatus(
       [planId]
     );
 
+    if (status === "IN_PROGRESS") {
+      for (const assignment of truckAssignments.rows) {
+        await dbClient.query(
+          `
+          UPDATE trucks
+          SET status = 'IN_DELIVERY',
+              updated_at = NOW()
+          WHERE id = $1
+          `,
+          [assignment.truck_id]
+        );
+      }
+    }
+
     if (status === "COMPLETED" || status === "BLOCKED") {
       for (const assignment of truckAssignments.rows) {
         await dbClient.query(
@@ -465,13 +594,20 @@ export async function updateDeliveryPlanStatus(
     if (status === "COMPLETED") {
       await dbClient.query(
         `
-        UPDATE orders
+        UPDATE orders o
         SET planning_status = 'DELIVERED',
             status = 'delivered'
-        WHERE id IN (
-          SELECT order_id
+        WHERE o.id IN (
+          SELECT DISTINCT order_id
           FROM delivery_plan_orders
           WHERE delivery_plan_id = $1
+        )
+        AND NOT EXISTS (
+          SELECT 1
+          FROM delivery_plan_orders dpo
+          JOIN delivery_plans dp ON dp.id = dpo.delivery_plan_id
+          WHERE dpo.order_id = o.id
+            AND dp.status <> 'COMPLETED'
         )
         `,
         [planId]
