@@ -1,0 +1,704 @@
+{
+  "info": {
+    "_postman_id": "f1d2d2f9-5d7c-4f3a-a9e2-1a1b1c1d1e1f",
+    "name": "Infflux API",
+    "description": "Postman collection for the Infflux hackathon backend.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "{{baseUrl}}" },
+    { "key": "token", "value": "{{token}}" },
+    { "key": "clientId", "value": "{{clientId}}" },
+    { "key": "warehouseId", "value": "{{warehouseId}}" },
+    { "key": "floorId", "value": "{{floorId}}" },
+    { "key": "aisleId", "value": "{{aisleId}}" },
+    { "key": "slotId", "value": "{{slotId}}" },
+    { "key": "dockId", "value": "{{dockId}}" },
+    { "key": "parkingZoneId", "value": "{{parkingZoneId}}" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "POST Register Client",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"client@example.com\",\n  \"password\": \"123456\",\n  \"role\": \"client\",\n  \"company_name\": \"Client A\",\n  \"billing_address\": \"12 rue Exemple, Paris\",\n  \"main_contact_name\": \"Jean Dupont\",\n  \"main_contact_phone\": \"0600000000\",\n  \"main_contact_email\": \"jean@clienta.fr\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "POST Register Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@infflux.com\",\n  \"password\": \"admin123\",\n  \"role\": \"admin\",\n  \"company_name\": \"Infflux\",\n  \"billing_address\": \"1 rue Infflux, Paris\",\n  \"main_contact_name\": \"Admin User\",\n  \"main_contact_phone\": \"0600000001\",\n  \"main_contact_email\": \"admin@infflux.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "POST Login Client",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data.token) {",
+                  "  pm.environment.set('token', data.token);",
+                  "}",
+                  "if (data.user && data.user.id) {",
+                  "  pm.environment.set('clientId', data.user.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"client@example.com\",\n  \"password\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "POST Login Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data.token) {",
+                  "  pm.environment.set('token', data.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@infflux.com\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "GET Me",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "me"]
+            }
+          }
+        },
+        {
+          "name": "PATCH Me",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_name\": \"Client A Updated\",\n  \"billing_address\": \"15 rue Nouvelle, Paris\",\n  \"main_contact_name\": \"Jean Dupont\",\n  \"main_contact_phone\": \"0600000002\",\n  \"main_contact_email\": \"jean.updated@clienta.fr\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "me"]
+            }
+          }
+        },
+        {
+          "name": "GET Clients (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/clients",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "clients"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "POST Create Order (Client)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"delivery_destination\": {\n    \"delivery_address\": \"25 avenue Livraison, Lyon\",\n    \"site_name\": \"Magasin Lyon\",\n    \"delivery_contact_name\": \"Sophie Martin\",\n    \"delivery_contact_phone\": \"0611111111\"\n  },\n  \"order_lines\": [\n    {\n      \"product_id\": \"PROD_001\",\n      \"quantity_pallets\": 4\n    },\n    {\n      \"product_id\": \"PROD_002\",\n      \"quantity_pallets\": 2\n    }\n  ],\n  \"delivery_need\": {\n    \"requested_delivery_date\": \"2026-04-28\",\n    \"delivery_time_window\": \"morning\",\n    \"urgency_level\": \"flexible\",\n    \"can_receive_early\": true,\n    \"earliest_acceptable_delivery_date\": \"2026-04-26\",\n    \"can_store_early_delivery\": true,\n    \"grouped_delivery_allowed\": true,\n    \"latest_acceptable_grouped_delivery_date\": \"2026-04-30\",\n    \"split_delivery_allowed\": false,\n    \"partner_delivery_allowed\": true\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders"]
+            }
+          }
+        },
+        {
+          "name": "GET My Orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders", "me"]
+            }
+          }
+        },
+        {
+          "name": "GET All Orders (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Client Warehouses",
+      "item": [
+        {
+          "name": "POST Create Warehouse",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data.id) {",
+                  "  pm.environment.set('warehouseId', data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Entrepot Client Lyon\",\n  \"address\": \"25 avenue Livraison, Lyon\",\n  \"floors_count\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/client-warehouses",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "client-warehouses"]
+            }
+          }
+        },
+        {
+          "name": "PATCH Warehouse",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Entrepot Client Lyon Updated\",\n  \"address\": \"27 avenue Livraison, Lyon\",\n  \"floors_count\": 2\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/client-warehouses/{{warehouseId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "client-warehouses", "{{warehouseId}}"]
+            }
+          }
+        },
+        {
+          "name": "GET Warehouses By Client",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/client-warehouses/{{clientId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "client-warehouses", "{{clientId}}"]
+            }
+          }
+        },
+        {
+          "name": "GET Warehouse Availability (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/client-warehouses/availability",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "client-warehouses", "availability"]
+            }
+          }
+        },
+        {
+          "name": "GET Warehouse Layout",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/client-warehouses/{{warehouseId}}/layout",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "client-warehouses", "{{warehouseId}}", "layout"]
+            }
+          }
+        },
+        {
+          "name": "GET Warehouse Exterior",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/client-warehouses/{{warehouseId}}/exterior",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "client-warehouses", "{{warehouseId}}", "exterior"]
+            }
+          }
+        },
+        {
+          "name": "GET Occupancy Metrics",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/client-warehouses/{{warehouseId}}/occupancy-metrics",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "client-warehouses", "{{warehouseId}}", "occupancy-metrics"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Floors & Aisles",
+      "item": [
+        {
+          "name": "POST Create Floor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data.id) {",
+                  "  pm.environment.set('floorId', data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"level\": 1,\n  \"label\": \"RDC\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/client-warehouses/{{warehouseId}}/floors",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "client-warehouses", "{{warehouseId}}", "floors"]
+            }
+          }
+        },
+        {
+          "name": "PATCH Floor",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"level\": 2,\n  \"label\": \"Etage 1\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/client-warehouses/floors/{{floorId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "client-warehouses", "floors", "{{floorId}}"]
+            }
+          }
+        },
+        {
+          "name": "POST Create Aisle",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data.id) {",
+                  "  pm.environment.set('aisleId', data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"A\",\n  \"position_x\": 10,\n  \"position_y\": 20\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/client-warehouses/floors/{{floorId}}/aisles",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "client-warehouses", "floors", "{{floorId}}", "aisles"]
+            }
+          }
+        },
+        {
+          "name": "PATCH Aisle",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"B\",\n  \"position_x\": 30,\n  \"position_y\": 40\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/client-warehouses/aisles/{{aisleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "client-warehouses", "aisles", "{{aisleId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Exterior, Docks, Parking",
+      "item": [
+        {
+          "name": "POST Upsert Exterior",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"site_width\": 100,\n  \"site_height\": 60,\n  \"building_x\": 20,\n  \"building_y\": 10,\n  \"building_width\": 50,\n  \"building_height\": 30,\n  \"access_direction\": \"N\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/client-warehouses/{{warehouseId}}/exterior",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "client-warehouses", "{{warehouseId}}", "exterior"]
+            }
+          }
+        },
+        {
+          "name": "PATCH Exterior",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"site_width\": 120,\n  \"site_height\": 70,\n  \"building_x\": 25,\n  \"building_y\": 15,\n  \"building_width\": 55,\n  \"building_height\": 35,\n  \"access_direction\": \"E\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/client-warehouses/{{warehouseId}}/exterior",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "client-warehouses", "{{warehouseId}}", "exterior"]
+            }
+          }
+        },
+        {
+          "name": "POST Create Loading Dock",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data.id) {",
+                  "  pm.environment.set('dockId', data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"D1\",\n  \"position_x\": 5,\n  \"position_y\": 10,\n  \"side\": \"N\",\n  \"max_tonnage\": 18,\n  \"max_width_meters\": 2.8,\n  \"status\": \"FREE\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/client-warehouses/{{warehouseId}}/loading-docks",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "client-warehouses", "{{warehouseId}}", "loading-docks"]
+            }
+          }
+        },
+        {
+          "name": "PATCH Loading Dock",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"OCCUPIED\",\n  \"current_order_id\": null,\n  \"max_tonnage\": 18,\n  \"max_width_meters\": 2.8\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/loading-docks/{{dockId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "loading-docks", "{{dockId}}"]
+            }
+          }
+        },
+        {
+          "name": "GET Available Docks",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/client-warehouses/{{warehouseId}}/docks/available",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "client-warehouses", "{{warehouseId}}", "docks", "available"]
+            }
+          }
+        },
+        {
+          "name": "POST Create Parking Zone",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data.id) {",
+                  "  pm.environment.set('parkingZoneId', data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"position_x\": 70,\n  \"position_y\": 20,\n  \"width\": 20,\n  \"height\": 10,\n  \"capacity\": 4\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/client-warehouses/{{warehouseId}}/parking-zones",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "client-warehouses", "{{warehouseId}}", "parking-zones"]
+            }
+          }
+        },
+        {
+          "name": "PATCH Parking Zone",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"position_x\": 80,\n  \"position_y\": 25,\n  \"width\": 25,\n  \"height\": 12,\n  \"capacity\": 6\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/client-warehouses/parking-zones/{{parkingZoneId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "client-warehouses", "parking-zones", "{{parkingZoneId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Storage Slots",
+      "item": [
+        {
+          "name": "POST Create Storage Slot",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data.id) {",
+                  "  pm.environment.set('slotId', data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"aisle_id\": \"{{aisleId}}\",\n  \"rank\": \"35\",\n  \"side\": \"LEFT\",\n  \"total_volume\": 12,\n  \"used_volume\": 6,\n  \"total_pallets\": 8,\n  \"used_pallets\": 4,\n  \"status\": \"PARTIAL\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/storage-slots",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "storage-slots"]
+            }
+          }
+        },
+        {
+          "name": "PATCH Storage Slot",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"used_volume\": 8,\n  \"used_pallets\": 5,\n  \"status\": \"PARTIAL\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/storage-slots/{{slotId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "storage-slots", "{{slotId}}"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
