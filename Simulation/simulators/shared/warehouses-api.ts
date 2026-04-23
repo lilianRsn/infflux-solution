@@ -57,6 +57,54 @@ export interface PatchSlotPayload {
   status?: SlotStatus;
 }
 
+export interface WarehouseLayoutSlot {
+  id: string;
+  rank: string;
+  side: string;
+  total_volume: number;
+  used_volume: number | null;
+  total_pallets: number | null;
+  used_pallets: number | null;
+  status: SlotStatus;
+}
+
+export interface WarehouseLayoutAisle {
+  id: string;
+  code: string;
+  position_x: number | null;
+  position_y: number | null;
+  slots: WarehouseLayoutSlot[];
+}
+
+export interface WarehouseLayoutFloor {
+  id: string;
+  level: number;
+  label: string;
+  aisles: WarehouseLayoutAisle[];
+}
+
+export interface WarehouseLayout {
+  id: string;
+  client_id: string;
+  name: string;
+  address: string;
+  floors: WarehouseLayoutFloor[];
+}
+
+export function listWarehousesByClient(
+  client: ApiClient,
+  clientId: string
+): Promise<WarehouseCreated[]> {
+  return client.get<WarehouseCreated[]>(`/api/client-warehouses/${clientId}`);
+}
+
+export function getWarehouseLayout(
+  client: ApiClient,
+  warehouseId: string
+): Promise<WarehouseLayout> {
+  return client.get<WarehouseLayout>(`/api/client-warehouses/${warehouseId}/layout`);
+}
+
 export function createWarehouse(
   client: ApiClient,
   body: { name: string; address: string; floors_count?: number }
