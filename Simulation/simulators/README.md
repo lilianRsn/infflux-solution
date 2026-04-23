@@ -17,25 +17,24 @@ cp .env.example .env    # puis éditer si besoin
 npm run merchant
 ```
 
-### Avec Docker (fullstack : db + api + simulateur)
+### Avec Docker (simulateur seul, contre un backend déjà lancé)
+
+**Prérequis** : le backend doit tourner sur `http://localhost:3000` de l'hôte (via son propre `docker compose` ou `npm run dev`).
 
 Depuis `Simulation/` :
 
 ```bash
-# Build + démarrage db + api, puis lancement du simulateur qui envoie ses commandes
+# Build + exécution du simulateur contre le backend de l'hôte
 docker compose up --build
 
-# Relancer uniquement le simulateur (db + api restent up)
+# Relancer après un changement de config
 docker compose run --rm merchant-sim
 
-# Suivre les logs
+# Suivre les logs (le sim tourne en one-shot, restart: "no")
 docker compose logs -f merchant-sim
-
-# Tout arrêter et nettoyer (y compris la base)
-docker compose down -v
 ```
 
-Le simulateur attend que l'API soit `healthy` (healthcheck sur `/api/health`) avant de démarrer. Les logs JSON structurés s'affichent sur `stdout`.
+Le conteneur joint le backend via `host.docker.internal:3000` (mappé vers l'IP du host, `extra_hosts` le rend portable Linux/Windows/macOS).
 
 Le simulateur :
 1. Enregistre le marchand (`POST /api/auth/register`, idempotent — 409 ignoré).
