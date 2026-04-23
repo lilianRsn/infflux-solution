@@ -7,7 +7,12 @@ import {
   CreateExteriorBody,
   CreateFloorBody,
   CreateParkingBody,
-  CreateWarehouseBody
+  CreateWarehouseBody,
+  PatchAisleBody,
+  PatchExteriorBody,
+  PatchFloorBody,
+  PatchParkingBody,
+  PatchWarehouseBody
 } from "./client-warehouses.types";
 
 async function assertWarehouseAccess(warehouseId: string, user: AuthUser) {
@@ -41,6 +46,43 @@ async function assertFloorAccess(floorId: string, user: AuthUser) {
   }
 }
 
+async function assertAisleAccess(aisleId: string, user: AuthUser) {
+  if (user.role === "admin") return;
+
+  const r = await pool.query(
+    `
+    SELECT wa.id
+    FROM warehouse_aisles wa
+    JOIN warehouse_floors wf ON wf.id = wa.floor_id
+    JOIN client_warehouses cw ON cw.id = wf.client_warehouse_id
+    WHERE wa.id = $1 AND cw.client_id = $2
+    `,
+    [aisleId, user.id]
+  );
+
+  if (!r.rows.length) {
+    throw new AppError("Forbidden", 403);
+  }
+}
+
+async function assertParkingZoneAccess(parkingZoneId: string, user: AuthUser) {
+  if (user.role === "admin") return;
+
+  const r = await pool.query(
+    `
+    SELECT pz.id
+    FROM parking_zones pz
+    JOIN client_warehouses cw ON cw.id = pz.client_warehouse_id
+    WHERE pz.id = $1 AND cw.client_id = $2
+    `,
+    [parkingZoneId, user.id]
+  );
+
+  if (!r.rows.length) {
+    throw new AppError("Forbidden", 403);
+  }
+}
+
 export async function createWarehouse(body: CreateWarehouseBody, user: AuthUser) {
   const clientId = user.role === "client" ? user.id : body.client_id;
 
@@ -55,6 +97,48 @@ export async function createWarehouse(body: CreateWarehouseBody, user: AuthUser)
     RETURNING *
     `,
     [clientId, body.name, body.address, body.floors_count ?? 1]
+  );
+
+  return r.rows[0];
+}
+
+export async function updateWarehouse(
+  warehouseId: string,
+  body: PatchWarehouseBody,
+  user: AuthUser
+) {
+  await assertWarehouseAccess(warehouseId, user);
+
+  const existing = await pool.query(
+    "SELECT * FROM client_warehouses WHERE id = $1",
+    [warehouseId]
+  );
+
+  if (!existing.rows.length) {
+    throw new AppError("Warehouse not found", 404);
+  }
+
+  const current = existing.rows[0];
+  const name = body.name ?? current.name;
+  const address = body.address ?? current.address;
+  const floorsCount = body.floors_count ?? current.floors_count;
+
+  if (!name || !address || floorsCount <= 0) {
+    throw new AppError("name, address and floors_count must be valid", 400);
+  }
+
+  const r = await pool.query(
+    `
+    UPDATE client_warehouses
+    SET
+      name = $2,
+      address = $3,
+      floors_count = $4,
+      updated_at = NOW()
+    WHERE id = $1
+    RETURNING *
+    `,
+    [warehouseId, name, address, floorsCount]
   );
 
   return r.rows[0];
@@ -83,6 +167,41 @@ export async function createFloor(
   return r.rows[0];
 }
 
+export async function updateFloor(
+  floorId: string,
+  body: PatchFloorBody,
+  user: AuthUser
+) {
+  await assertFloorAccess(floorId, user);
+
+  const existing = await pool.query(
+    "SELECT * FROM warehouse_floors WHERE id = $1",
+    [floorId]
+  );
+
+  if (!existing.rows.length) {
+    throw new AppError("Floor not found", 404);
+  }
+
+  const current = existing.rows[0];
+  const level = body.level ?? current.level;
+  const label = body.label ?? current.label;
+
+  const r = await pool.query(
+    `
+    UPDATE warehouse_floors
+    SET
+      level = $2,
+      label = $3
+    WHERE id = $1
+    RETURNING *
+    `,
+    [floorId, level, label]
+  );
+
+  return r.rows[0];
+}
+
 export async function createAisle(
   floorId: string,
   body: CreateAisleBody,
@@ -101,6 +220,47 @@ export async function createAisle(
     RETURNING *
     `,
     [floorId, body.code, body.position_x ?? null, body.position_y ?? null]
+  );
+
+  return r.rows[0];
+}
+
+export async function updateAisle(
+  aisleId: string,
+  body: PatchAisleBody,
+  user: AuthUser
+) {
+  await assertAisleAccess(aisleId, user);
+
+  const existing = await pool.query(
+    "SELECT * FROM warehouse_aisles WHERE id = $1",
+    [aisleId]
+  );
+
+  if (!existing.rows.length) {
+    throw new AppError("Aisle not found", 404);
+  }
+
+  const current = existing.rows[0];
+  const code = body.code ?? current.code;
+  const positionX = body.position_x ?? current.position_x;
+  const positionY = body.position_y ?? current.position_y;
+
+  if (!code) {
+    throw new AppError("code is required", 400);
+  }
+
+  const r = await pool.query(
+    `
+    UPDATE warehouse_aisles
+    SET
+      code = $2,
+      position_x = $3,
+      position_y = $4
+    WHERE id = $1
+    RETURNING *
+    `,
+    [aisleId, code, positionX, positionY]
   );
 
   return r.rows[0];
@@ -147,6 +307,58 @@ export async function createExterior(
       body.building_width,
       body.building_height,
       body.access_direction
+    ]
+  );
+
+  return r.rows[0];
+}
+
+export async function updateExterior(
+  warehouseId: string,
+  body: PatchExteriorBody,
+  user: AuthUser
+) {
+  await assertWarehouseAccess(warehouseId, user);
+
+  const existing = await pool.query(
+    `
+    SELECT *
+    FROM client_warehouse_exteriors
+    WHERE client_warehouse_id = $1
+    `,
+    [warehouseId]
+  );
+
+  if (!existing.rows.length) {
+    throw new AppError("Exterior not found", 404);
+  }
+
+  const current = existing.rows[0];
+
+  const r = await pool.query(
+    `
+    UPDATE client_warehouse_exteriors
+    SET
+      site_width = $2,
+      site_height = $3,
+      building_x = $4,
+      building_y = $5,
+      building_width = $6,
+      building_height = $7,
+      access_direction = $8,
+      updated_at = NOW()
+    WHERE client_warehouse_id = $1
+    RETURNING *
+    `,
+    [
+      warehouseId,
+      body.site_width ?? current.site_width,
+      body.site_height ?? current.site_height,
+      body.building_x ?? current.building_x,
+      body.building_y ?? current.building_y,
+      body.building_width ?? current.building_width,
+      body.building_height ?? current.building_height,
+      body.access_direction ?? current.access_direction
     ]
   );
 
@@ -219,6 +431,49 @@ export async function createParkingZone(
       body.width,
       body.height,
       body.capacity
+    ]
+  );
+
+  return r.rows[0];
+}
+
+export async function updateParkingZone(
+  parkingZoneId: string,
+  body: PatchParkingBody,
+  user: AuthUser
+) {
+  await assertParkingZoneAccess(parkingZoneId, user);
+
+  const existing = await pool.query(
+    "SELECT * FROM parking_zones WHERE id = $1",
+    [parkingZoneId]
+  );
+
+  if (!existing.rows.length) {
+    throw new AppError("Parking zone not found", 404);
+  }
+
+  const current = existing.rows[0];
+
+  const r = await pool.query(
+    `
+    UPDATE parking_zones
+    SET
+      position_x = $2,
+      position_y = $3,
+      width = $4,
+      height = $5,
+      capacity = $6
+    WHERE id = $1
+    RETURNING *
+    `,
+    [
+      parkingZoneId,
+      body.position_x ?? current.position_x,
+      body.position_y ?? current.position_y,
+      body.width ?? current.width,
+      body.height ?? current.height,
+      body.capacity ?? current.capacity
     ]
   );
 
