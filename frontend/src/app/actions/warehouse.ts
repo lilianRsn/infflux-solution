@@ -1,9 +1,10 @@
 'use server'
 
 import { cookies } from 'next/headers'
+import { getBackendUrl } from '@/lib/backend-url'
 import type { WarehouseConfig } from '@/lib/warehouse-store'
 
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001'
+const BACKEND_URL = getBackendUrl()
 
 async function getAuthHeaders() {
   const cookieStore = await cookies()

@@ -2,14 +2,18 @@ import { Router } from "express";
 import requireRoles from "../../common/guards/roles.guard";
 import {
   createTruckHandler,
+  deleteTruckHandler,
+  getTruckByIdHandler,
   listTrucksHandler,
-  updateTruckHandler
+  updateTruckHandler,
 } from "./trucks.controller";
 
 const router = Router();
 
-router.post("/", requireRoles("admin"), createTruckHandler);
 router.get("/", requireRoles("admin"), listTrucksHandler);
+router.get("/:id", requireRoles("admin"), getTruckByIdHandler);
+router.post("/", requireRoles("admin"), createTruckHandler);
 router.patch("/:id", requireRoles("admin"), updateTruckHandler);
+router.delete("/:id", requireRoles("admin"), deleteTruckHandler);
 
 export default router;
