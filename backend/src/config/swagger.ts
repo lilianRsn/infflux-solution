@@ -278,7 +278,96 @@ const swaggerSpec = swaggerJSDoc({
                         max_tonnage: { type: "number", example: 18 },
                         max_width_meters: { type: "number", example: 2.8 }
                     }
-                }
+                },
+                UserProfile: {
+                    type: "object",
+                    properties: {
+                        id: { type: "string", format: "uuid" },
+                        email: { type: "string", example: "client@example.com" },
+                        role: { type: "string", enum: ["admin", "client", "partner"], example: "client" },
+                        company_name: { type: "string", example: "Client A" },
+                        billing_address: { type: "string", example: "12 rue Exemple, Paris" },
+                        main_contact_name: { type: "string", example: "Jean Dupont" },
+                        main_contact_phone: { type: "string", example: "0600000000" },
+                        main_contact_email: { type: "string", example: "jean@clienta.fr" },
+                        created_at: { type: "string", example: "2026-04-23T10:00:00.000Z" }
+                    }
+                },
+                UpdateMeRequest: {
+                    type: "object",
+                    properties: {
+                        company_name: { type: "string", example: "Client A Updated" },
+                        billing_address: { type: "string", example: "15 rue Nouvelle, Paris" },
+                        main_contact_name: { type: "string", example: "Jean Dupont" },
+                        main_contact_phone: { type: "string", example: "0600000001" },
+                        main_contact_email: { type: "string", example: "jean.updated@clienta.fr" }
+                    }
+                },
+                ClientCreateOrderRequest: {
+                    type: "object",
+                    required: ["delivery_destination", "order_lines", "delivery_need"],
+                    properties: {
+                        delivery_destination: {
+                            type: "object",
+                            required: ["delivery_address"],
+                            properties: {
+                                delivery_address: {
+                                    type: "string",
+                                    example: "25 avenue Livraison, Lyon"
+                                },
+                                site_name: { type: "string", example: "Magasin Lyon" },
+                                delivery_contact_name: { type: "string", example: "Sophie Martin" },
+                                delivery_contact_phone: { type: "string", example: "0611111111" }
+                            }
+                        },
+                        order_lines: {
+                            type: "array",
+                            items: { $ref: "#/components/schemas/OrderLine" }
+                        },
+                        delivery_need: {
+                            type: "object",
+                            required: [
+                                "requested_delivery_date",
+                                "delivery_time_window",
+                                "urgency_level"
+                            ],
+                            properties: {
+                                requested_delivery_date: {
+                                    type: "string",
+                                    format: "date",
+                                    example: "2026-04-28"
+                                },
+                                delivery_time_window: {
+                                    type: "string",
+                                    enum: ["morning", "afternoon", "full_day"],
+                                    example: "morning"
+                                },
+                                urgency_level: {
+                                    type: "string",
+                                    enum: ["urgent", "standard", "flexible"],
+                                    example: "flexible"
+                                },
+                                can_receive_early: { type: "boolean", example: true },
+                                earliest_acceptable_delivery_date: {
+                                    type: "string",
+                                    format: "date",
+                                    example: "2026-04-26"
+                                },
+                                can_store_early_delivery: { type: "boolean", example: true },
+                                available_storage_capacity_pallets: { type: "integer", example: 10 },
+                                grouped_delivery_allowed: { type: "boolean", example: true },
+                                latest_acceptable_grouped_delivery_date: {
+                                    type: "string",
+                                    format: "date",
+                                    example: "2026-04-30"
+                                },
+                                split_delivery_allowed: { type: "boolean", example: false },
+                                partner_delivery_allowed: { type: "boolean", example: true }
+                            }
+                        }
+                    }
+                },
+
             }
         },
         paths: {
@@ -335,6 +424,8 @@ const swaggerSpec = swaggerJSDoc({
                 post: {
                     tags: ["Orders"],
                     summary: "Create a new order",
+                    description:
+                        "For clients, customer data is loaded automatically from the authenticated profile. Admins must still provide the customer block.",
                     security: [{ bearerAuth: [] }],
                     requestBody: {
                         required: true,
@@ -830,6 +921,38 @@ const swaggerSpec = swaggerJSDoc({
                     }
                 }
             },
+            "/api/users/me": {
+                get: {
+                    tags: ["Users"],
+                    summary: "Get authenticated user profile",
+                    security: [{ bearerAuth: [] }],
+                    responses: {
+                        "200": { description: "Current user profile" },
+                        "401": { description: "Unauthorized" },
+                        "404": { description: "User not found" }
+                    }
+                },
+                patch: {
+                    tags: ["Users"],
+                    summary: "Update authenticated user profile",
+                    security: [{ bearerAuth: [] }],
+                    requestBody: {
+                        required: true,
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/UpdateMeRequest" }
+                            }
+                        }
+                    },
+                    responses: {
+                        "200": { description: "Profile updated" },
+                        "400": { description: "Validation error" },
+                        "401": { description: "Unauthorized" },
+                        "404": { description: "User not found" }
+                    }
+                }
+            },
+
         }
     },
     apis: []

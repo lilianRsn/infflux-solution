@@ -31,11 +31,22 @@ export async function registerIfNew(
     await client.post("/api/auth/register", payload);
     return "created";
   } catch (err) {
-    if (err instanceof ApiError && err.status === 409) {
-      return "already_exists";
+    if (err instanceof ApiError) {
+      if (err.status === 409) return "already_exists";
+      // Le backend peut renvoyer 500 avec message "Email already exists"
+      // au lieu d'un 409 propre ; on normalise ici.
+      if (err.status === 500 && isEmailAlreadyExistsBody(err.body)) {
+        return "already_exists";
+      }
     }
     throw err;
   }
+}
+
+function isEmailAlreadyExistsBody(body: unknown): boolean {
+  if (typeof body !== "object" || body === null || !("message" in body)) return false;
+  const msg = (body as { message: unknown }).message;
+  return typeof msg === "string" && msg.toLowerCase().includes("already exists");
 }
 
 export async function login(
@@ -56,10 +67,10 @@ export interface EnsureAuthenticatedResult {
 }
 
 /**
- * Tente un login direct — si le compte n'existe pas (401), enregistre puis
- * relogue. Rend le simulateur idempotent entre runs : le marchand peut
- * être déjà présent en base sans faire tomber le backend sur un register en
- * doublon.
+ * Tente un login direct — si le compte n'existe pas, enregistre puis relogue.
+ * Accepte 401 (attendu) ou 500 (le backend remonte actuellement toutes les
+ * erreurs auth en 500, y compris "Invalid credentials") comme signal de
+ * "compte absent → tenter register".
  */
 export async function ensureAuthenticated(
   client: ApiClient,
@@ -69,7 +80,7 @@ export async function ensureAuthenticated(
     const res = await login(client, payload.email, payload.password);
     return { outcome: "logged_in", user: res.user };
   } catch (err) {
-    if (!(err instanceof ApiError) || err.status !== 401) {
+    if (!(err instanceof ApiError) || (err.status !== 401 && err.status !== 500)) {
       throw err;
     }
   }
