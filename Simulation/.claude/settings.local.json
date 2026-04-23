@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(npm test *)",
+      "Bash(git -C .. add simulators/merchant/runner.ts)",
+      "Bash(git -C .. commit -m ' *)",
+      "Bash(git -C .. log --oneline -n 4)",
+      "Bash(git -C .. add simulators/merchant/warehouse/register-stock.ts simulators/merchant/warehouse/ensure-stock.ts)",
+      "Bash(git -C .. add simulators/shared/tick-loop.ts)"
+    ]
+  }
+}
