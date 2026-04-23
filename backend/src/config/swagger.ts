@@ -278,7 +278,32 @@ const swaggerSpec = swaggerJSDoc({
                         max_tonnage: { type: "number", example: 18 },
                         max_width_meters: { type: "number", example: 2.8 }
                     }
-                }
+                },
+                UserProfile: {
+                    type: "object",
+                    properties: {
+                        id: { type: "string", format: "uuid" },
+                        email: { type: "string", example: "client@example.com" },
+                        role: { type: "string", enum: ["admin", "client", "partner"], example: "client" },
+                        company_name: { type: "string", example: "Client A" },
+                        billing_address: { type: "string", example: "12 rue Exemple, Paris" },
+                        main_contact_name: { type: "string", example: "Jean Dupont" },
+                        main_contact_phone: { type: "string", example: "0600000000" },
+                        main_contact_email: { type: "string", example: "jean@clienta.fr" },
+                        created_at: { type: "string", example: "2026-04-23T10:00:00.000Z" }
+                    }
+                },
+                UpdateMeRequest: {
+                    type: "object",
+                    properties: {
+                        company_name: { type: "string", example: "Client A Updated" },
+                        billing_address: { type: "string", example: "15 rue Nouvelle, Paris" },
+                        main_contact_name: { type: "string", example: "Jean Dupont" },
+                        main_contact_phone: { type: "string", example: "0600000001" },
+                        main_contact_email: { type: "string", example: "jean.updated@clienta.fr" }
+                    }
+                },
+
             }
         },
         paths: {
@@ -830,6 +855,38 @@ const swaggerSpec = swaggerJSDoc({
                     }
                 }
             },
+            "/api/users/me": {
+                get: {
+                    tags: ["Users"],
+                    summary: "Get authenticated user profile",
+                    security: [{ bearerAuth: [] }],
+                    responses: {
+                        "200": { description: "Current user profile" },
+                        "401": { description: "Unauthorized" },
+                        "404": { description: "User not found" }
+                    }
+                },
+                patch: {
+                    tags: ["Users"],
+                    summary: "Update authenticated user profile",
+                    security: [{ bearerAuth: [] }],
+                    requestBody: {
+                        required: true,
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/UpdateMeRequest" }
+                            }
+                        }
+                    },
+                    responses: {
+                        "200": { description: "Profile updated" },
+                        "400": { description: "Validation error" },
+                        "401": { description: "Unauthorized" },
+                        "404": { description: "User not found" }
+                    }
+                }
+            },
+
         }
     },
     apis: []
