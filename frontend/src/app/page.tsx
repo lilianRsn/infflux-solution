@@ -42,9 +42,9 @@ function getRoleConfig(user: User): { subtitle: string; cards: PageCard[] } {
             tag: 'Commandes',
           },
           {
-            href: '/warehouse',
-            title: 'Mon entrepôt',
-            description: "Mettez à jour l'état de votre espace de stockage et de vos docks.",
+            href: '/client/warehouses',
+            title: 'Mes entrepôts',
+            description: 'Gérez et visualisez vos espaces de stockage et docks de déchargement.',
             tag: 'Entrepôt',
           },
         ],

@@ -209,6 +209,171 @@ GET   /client-warehouses/:id/docks/available   → liste docks libres pour une l
 
 ---
 
+### Attribution de commande avec réservation de capacité
+
+Ferme la boucle entre la capacité déclarée par le client et la planification côté admin : quand un admin attribue une commande à un transporteur, le système réserve le volume correspondant dans l'entrepôt du client destinataire. Le client voit la capacité à venir diminuer dans sa vue 2D.
+
+**Principe fondamental** : la réservation porte sur un volume global, pas sur des emplacements précis. L'organisation physique interne reste entièrement à la discrétion du client. L'enum `SlotStatus` reste à trois valeurs (`FREE`, `PARTIAL`, `FULL`) — il n'existe pas de statut `RESERVED` au niveau du slot.
+
+#### Modèle de capacité à trois niveaux
+
+| Notion | Calcul | Affichage |
+|---|---|---|
+| Volume total | somme de `totalVolume` de tous les slots | Toujours visible |
+| Volume occupé (physique) | somme de `usedVolume` des slots `PARTIAL`/`FULL` | Métrique principale |
+| Volume réservé | somme de `Order.reservedVolume` où `status = ASSIGNED` | Ligne secondaire en gris |
+| **Volume disponible effectif** | `total − occupé − réservé` | **Métrique clé pour l'allocation** |
+
+Le volume réservé est une projection sur le futur : il représente la marchandise qui va arriver. Admin et client ont tous les deux cette vue.
+
+#### Cycle de vie d'une commande côté capacité
+
+| Statut | Déclencheur | Impact capacité |
+|---|---|---|
+| `PENDING` | Commande créée | Aucun |
+| `ASSIGNED` | Admin attribue un transporteur | `reservedVolume` enregistré sur l'entrepôt client |
+| `IN_TRANSIT` | Transporteur en route | Réservation maintenue |
+| `DELIVERED` | Livraison confirmée | Réservation libérée — le client met à jour ses slots physiquement |
+| `CANCELLED` | Annulation (avant livraison) | Réservation libérée |
+
+> Il n'y a pas de lien automatique entre une commande livrée et un changement de statut de slot. Le client peut mettre 3 jours à ranger, ou répartir la marchandise sur plusieurs slots à sa discrétion.
+
+#### Modèle de données
+
+Extension du modèle `Order` existant — pas de table de liaison avec les slots :
+
+```prisma
+model Order {
+  // ... champs existants
+  reservedVolume  Float?       // volume réservé (null si PENDING)
+  reservedAt      DateTime?
+  assignedBy      String?      // userId admin ayant attribué
+  carrierId       String?      // transporteur assigné (flotte propre ou partenaire)
+}
+
+enum OrderStatus {
+  PENDING      // créée, pas encore attribuée
+  ASSIGNED     // attribuée, volume réservé
+  IN_TRANSIT   // en cours de livraison
+  DELIVERED    // livrée, réservation libérée
+  CANCELLED    // annulée, réservation libérée
+}
+```
+
+#### Calcul de capacité (backend)
+
+`WarehouseCapacityService` expose une méthode centrale, source de vérité unique pour toutes les vérifications et tous les affichages :
+
+```typescript
+getCapacity(clientWarehouseId: string): {
+  totalVolume: number
+  occupiedVolume: number      // somme des usedVolume (PARTIAL + FULL)
+  reservedVolume: number      // somme des Order.reservedVolume (status = ASSIGNED)
+  availableVolume: number     // total − occupied − reserved
+  incomingOrders: Array<{ orderId: string; volume: number; expectedDate: Date }>
+}
+```
+
+#### Règle d'attribution
+
+Avant de confirmer une attribution, le backend vérifie :
+
+```
+order.volume <= warehouseCapacity.availableVolume
+```
+
+Si la condition n'est pas respectée, l'attribution est refusée avec un message explicite :
+> "Capacité insuffisante chez le client : 3.2 m³ demandés, 1.8 m³ disponibles (dont 4.5 m³ déjà réservés sur 2 commandes à venir)."
+
+#### Interfaces impactées
+
+**Page admin — "Commandes à attribuer"**
+
+Liste des commandes au statut `PENDING`, avec pour chaque commande un badge de capacité calculé en temps réel :
+
+| Badge | Condition | Couleur |
+|---|---|---|
+| Capacité OK | `disponible > 150% du besoin` | Success (vert) |
+| Capacité tendue | `100% ≤ disponible ≤ 150%` | Warning (ambre) |
+| Capacité insuffisante | `disponible < volume demandé` | Danger (rouge) |
+
+Le bouton "Attribuer" est désactivé si la capacité est insuffisante, avec un tooltip explicatif. Filtres : par client, urgence, volume, statut du badge.
+
+**Modale — "Attribution de commande"**
+
+- Récap de la commande (volume, produits, date demandée)
+- Bloc capacité client : total / occupé / réservé / disponible projeté après cette nouvelle réservation
+- Sélecteur de transporteur (flotte propre avec camion disponible, ou partenaire avec tournée compatible)
+- Bouton "Confirmer l'attribution"
+
+**Vue 2D — mise à jour du bandeau de métriques**
+
+```
+Volume disponible         42 m³
+Volume à venir (réservé)   8 m³   ← ligne secondaire en gris, plus petite
+```
+
+Le "Volume à venir" est cliquable et ouvre la liste des commandes `ASSIGNED` non livrées avec volume et date prévue. Le plan 2D lui-même n'affiche aucune différence visuelle — les slots gardent leur statut physique réel.
+
+**Vue client — bandeau de notification**
+
+Bandeau informatif (palette Info — `blue-50`, `blue-800`) affiché quand une commande vient d'être attribuée à destination du client :
+> "Nouvelle livraison prévue le 18/04 · 2.4 m³"
+
+Discret, sans action obligatoire.
+
+#### Endpoints API
+
+```
+GET    /orders?status=PENDING                           → commandes à attribuer
+GET    /client-warehouses/:id/capacity                  → objet capacité complet
+GET    /orders/:id/capacity-check?warehouseId=...       → vérifie si une commande passe
+POST   /orders/:id/assign                               → attribue et réserve le volume
+                                                          body: { carrierId, vehicleId?, scheduledDate }
+POST   /orders/:id/deliver                              → marque livrée, libère la réservation
+DELETE /orders/:id/assignment                           → annule l'attribution, libère la réservation
+GET    /client-warehouses/:id/incoming-orders           → commandes ASSIGNED non livrées
+```
+
+#### Règles métier et cas limites
+
+- Une commande ne peut pas être attribuée si `availableVolume < order.volume` — le bouton est désactivé côté front, la règle est vérifiée côté back
+- L'annulation d'une commande `ASSIGNED` libère automatiquement la réservation
+- La livraison libère la réservation mais n'impacte pas automatiquement les slots physiques
+- Si un client n'a pas déclaré d'entrepôt 2D (cas dégradé), l'attribution se fait sans vérification de capacité
+- Les commandes `PENDING` ne consomment aucune capacité — la réservation n'existe qu'à partir de `ASSIGNED`
+
+#### Lien avec les autres modules
+
+- **Livraison anticipée** : si `availableVolume` est largement supérieur aux besoins à venir, l'admin reçoit une suggestion de proposer une livraison anticipée
+- **Livraisons groupées** : l'algorithme de regroupement vérifie la capacité cumulée de tous les destinataires avant de valider un groupage
+- **Dashboard KPIs** : taux de réservation moyen par client, durée moyenne entre `ASSIGNED` et `DELIVERED`, détection de clients régulièrement saturés
+
+#### Priorité hackathon
+
+1. Enrichissement du modèle `Order` (champs de réservation + enum `OrderStatus` étendu)
+2. `WarehouseCapacityService` + endpoint `/capacity`
+3. Page admin "Commandes à attribuer" avec liste et badges de capacité
+4. Modale d'attribution avec bloc capacité et sélecteur de transporteur
+5. Mise à jour du bandeau de métriques de la vue 2D (ajout "Volume à venir")
+6. Bandeau de notification côté client pour les commandes entrantes
+7. Action "Marquer livré" qui libère la réservation
+
+Les étapes 1 à 5 suffisent pour une démo convaincante.
+
+#### Scénario de démo recommandé
+
+1. Admin ouvre "Commandes à attribuer" — voit une commande avec badge **Capacité OK**
+2. Clique "Attribuer" → modale : total 120 m³, occupé 72 m³, réservé 6 m³, disponible **42 m³** → après attribution, disponible deviendra 39.6 m³
+3. Sélectionne un transporteur, confirme
+4. Bascule sur la vue 2D du client : "Volume à venir" passe de 6 m³ à 8.4 m³
+5. Clic sur "Volume à venir" → liste des commandes entrantes avec la nouvelle visible
+6. Retour admin, marque la commande livrée → "Volume à venir" revient à 6 m³, les slots physiques restent inchangés jusqu'à ce que le client les mette à jour
+
+Ce scénario démontre en 60 secondes que la décision admin se reflète immédiatement dans la vue client au niveau volumique, sans intrusion dans l'organisation physique interne.
+
+---
+
 ## Interfaces / Rôles
 
 

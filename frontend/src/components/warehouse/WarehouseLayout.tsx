@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import type { ClientWarehouse } from '@/lib/warehouse-data'
+import type { ClientWarehouse, StorageSlot } from '@/lib/warehouse-data'
 import InteriorTab from './InteriorTab'
 import ExteriorTab from './ExteriorTab'
 
@@ -17,8 +17,24 @@ interface Props {
   readonly readonly: boolean
 }
 
-export default function WarehouseLayout({ warehouse, readonly }: Props) {
+export default function WarehouseLayout({ warehouse: initialWarehouse, readonly }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('interior')
+  const [warehouse, setWarehouse] = useState<ClientWarehouse>(initialWarehouse)
+
+  const handleSlotUpdate = (updatedSlot: StorageSlot) => {
+    setWarehouse(prev => ({
+      ...prev,
+      floors: prev.floors.map(floor => ({
+        ...floor,
+        aisles: floor.aisles.map(aisle => ({
+          ...aisle,
+          slots: aisle.slots.map(slot => 
+            slot.id === updatedSlot.id ? updatedSlot : slot
+          )
+        }))
+      }))
+    }))
+  }
 
   return (
     <div className="space-y-4">
@@ -57,7 +73,11 @@ export default function WarehouseLayout({ warehouse, readonly }: Props) {
       </div>
 
       {activeTab === 'interior' ? (
-        <InteriorTab warehouse={warehouse} readonly={readonly} />
+        <InteriorTab 
+          warehouse={warehouse} 
+          readonly={readonly} 
+          onSlotUpdate={handleSlotUpdate}
+        />
       ) : (
         <ExteriorTab warehouse={warehouse} readonly={readonly} />
       )}

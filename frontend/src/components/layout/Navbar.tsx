@@ -12,11 +12,12 @@ interface NavLink {
 const ROLE_NAV: Record<string, NavLink[]> = {
   admin: [
     { href: '/admin/dashboard', label: 'Dashboard' },
+    { href: '/admin/clients', label: 'Clients' },
     { href: '/warehouse', label: 'Entrepôts' },
   ],
   client: [
     { href: '/client/commande', label: 'Commander' },
-    { href: '/warehouse', label: 'Mon entrepôt' },
+    { href: '/client/warehouses', label: 'Mes entrepôts' },
   ],
   partenaire: [
     { href: '/partenaire/dashboard', label: 'Dashboard' },
@@ -25,7 +26,7 @@ const ROLE_NAV: Record<string, NavLink[]> = {
 
 const ROLE_BADGE: Record<string, string> = {
   admin: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-  client: 'bg-slate-800 text-slate-300 border-slate-700',
+  client: 'bg-slate-700 text-slate-100 border-slate-600',
   partenaire: 'bg-green-500/10 text-green-400 border-green-500/20',
 }
 
@@ -77,7 +78,7 @@ export default function Navbar({ user }: Props) {
                 className={`px-3 h-8 inline-flex items-center rounded-md text-sm font-medium transition-colors ${
                   isActive
                     ? 'bg-slate-800 text-white'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                    : 'text-slate-200 hover:text-white hover:bg-slate-900'
                 }`}
               >
                 {link.label}
@@ -92,14 +93,14 @@ export default function Navbar({ user }: Props) {
           <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-bold border ${ROLE_BADGE[user.role]}`}>
             {ROLE_LABELS[user.role]}
           </span>
-          <span className="text-sm text-slate-300 font-medium">{user.name}</span>
+          <span className="text-sm text-slate-100 font-medium">{user.name}</span>
         </div>
         
         <div className="w-px h-4 bg-slate-800 mx-1" />
 
         <button
           onClick={handleLogout}
-          className="text-xs text-slate-400 hover:text-white flex items-center gap-2 transition-colors cursor-pointer"
+          className="text-xs text-slate-200 hover:text-white flex items-center gap-2 transition-colors cursor-pointer"
         >
           <span>Déconnexion</span>
         </button>
