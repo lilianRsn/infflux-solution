@@ -42,6 +42,40 @@ Ceci s'applique à Express, Fastify, Jest, Vitest, Prisma, Mongoose, Zod, etc. T
 - Les simulateurs n'accèdent JAMAIS à la base ou aux modules internes du backend. Uniquement via API HTTP.
 - Chaque simulateur expose une boucle temporelle paramétrable (tick rate) et des scénarios configurables.
 
+### Commits — autorisation durable
+
+Cette section constitue une **autorisation permanente** : tu peux (et dois) créer des commits à chaque étape franchie, sans demander confirmation à chaque fois.
+
+**Ce qui compte comme une étape franchie** (= un commit) :
+- Une feature complète cohérente : endpoint (route + contrôleur + service + test) ; module d'optimisation livré avec ses tests ; scénario de simulation terminé ; brique de code mutualisée dans `shared/`.
+- Une passe de refactoring qui laisse le type-check et les tests verts.
+- Une correction de bug accompagnée d'un test de régression.
+- Une mise à jour de configuration significative (`package.json`, `tsconfig`, hooks, skills, sous-agents).
+- Un ajout/mise à jour de documentation projet (`CLAUDE.md`, `README.md`, spec).
+
+**Ce qui ne justifie PAS un commit séparé** :
+- Un fichier créé à moitié en plein milieu d'une feature — attends que l'étape soit cohérente.
+- Un simple renommage en cours de rédaction.
+- Un état qui ne compile pas ou dont les tests échouent (sauf si le commit est explicitement un WIP demandé).
+
+**Conditions avant de commiter** :
+1. Le type-check passe (`tsc --noEmit` ou équivalent).
+2. Les tests pertinents passent (`npm test`).
+3. Le diff est lisible — pas de fichiers de debug oubliés, pas de `console.log` parasites.
+
+**Format du message** (style conventional, FR OK) :
+- Première ligne ≤ 70 car, impératif : `feat(merchant-sim): simulateur marchand initial avec stockage en cartons`.
+- Corps optionnel avec le *pourquoi*, pas le *quoi* (le diff montre le quoi).
+- Ajoute le trailer `Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>`.
+- Stage explicitement les fichiers concernés (`git add <paths>`), **pas** `git add -A`.
+
+**Ce que tu ne fais JAMAIS sans demande explicite** :
+- `git push` (quelle que soit la branche).
+- `git commit --amend` sur un commit déjà créé dans la session — crée un nouveau commit.
+- `git reset --hard`, `git push --force`, ou toute opération destructive.
+- Commiter des fichiers sensibles (`.env`, clés, secrets).
+- Skipper un hook (`--no-verify`).
+
 ## Sous-agents disponibles
 
 - `backend-api-dev` — conception et implémentation des routes API, contrôleurs, services.
