@@ -53,6 +53,18 @@ services:
       MERCHANT_CONTACT_PHONE: "0600000000"
     restart: always
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+    depends_on:
+      - api
+
   pgadmin:
     image: dpage/pgadmin4
     container_name: infflux_pgadmin
