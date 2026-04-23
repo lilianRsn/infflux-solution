@@ -55,6 +55,14 @@ export const defaultScenario: MerchantScenario = {
     catalogue: ["PROD_001", "PROD_002", "PROD_003", "PROD_004", "PROD_005", "PROD_006"],
     taux_remplissage_initial: 0.6
   },
+  warehouse: {
+    warehouse_name: "Entrepot Marchand A",
+    warehouse_address: "12 rue Exemple, Paris",
+    floor_label: "RDC",
+    floor_level: 1,
+    slot_side: "LEFT",
+    m3_par_carton: 0.05
+  },
   order_policy: {
     seuil_commande_cartons: 110,
     quantite_cible_cartons: 160,
