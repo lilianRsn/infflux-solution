@@ -8,9 +8,17 @@ import { loadConfigs, deleteConfig, configToWarehouse } from '@/lib/warehouse-st
 import { MOCK_WAREHOUSE, computeOccupancyStats } from '@/lib/warehouse-data'
 
 type WarehouseItem = {
-  warehouse: ReturnType<typeof configToWarehouse>
+  id: string
+  name: string
+  address: string
+  floorsCount: number
+  totalAisles: number
+  totalSlots: number
   config: WarehouseConfig | null
   isDemo: boolean
+  occupancyRate: number
+  availableVolume: number
+  totalVolume: number
 }
 
 function occupancyBadge(rate: number) {
@@ -27,46 +35,79 @@ function occupancyBar(rate: number) {
 
 interface Props {
   initialWarehouses: any[]
+  metricsById: Record<string, any>
 }
 
-export default function WarehouseList({ initialWarehouses }: Props) {
+export default function WarehouseList({ initialWarehouses, metricsById }: Props) {
   const [items, setItems] = useState<WarehouseItem[]>([])
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    const backendItems: WarehouseItem[] = initialWarehouses.map(wh => ({
-      warehouse: {
-        ...wh,
-        floors: wh.floors || [{ id: 'f1', aisles: [] }], // Minimal fallback
-        exterior: wh.exterior || MOCK_WAREHOUSE.exterior
-      },
-      config: null,
-      isDemo: false
-    }))
+    const localConfigs = loadConfigs()
+    const localById = new Map(localConfigs.map((c) => [c.id, c]))
 
-    // Also include localStorage configs if any
-    const configs = loadConfigs()
-    const userItems: WarehouseItem[] = configs.map((cfg) => ({
-      warehouse: configToWarehouse(cfg),
-      config: cfg,
-      isDemo: false,
-    }))
+    // Build items from backend warehouses, using real backend metrics
+    const backendItems: WarehouseItem[] = initialWarehouses.map((wh) => {
+      const metrics = metricsById[wh.id]
+      const localCfg = localById.get(wh.id)
 
-    const allItems = [...backendItems, ...userItems]
-    
-    // If no real warehouses, show the demo one
-    if (allItems.length === 0) {
-      setItems([{ warehouse: MOCK_WAREHOUSE, config: null, isDemo: true }])
+      // Count aisles/slots from local config if available, else use backend metrics
+      let totalAisles = 0
+      let totalSlots = metrics?.total_slots ?? 0
+
+      if (localCfg) {
+        const localWh = configToWarehouse(localCfg)
+        totalAisles = localWh.floors.reduce((s, f) => s + f.aisles.length, 0)
+        if (!metrics) {
+          totalSlots = localWh.floors.flatMap((f) => f.aisles.flatMap((a) => a.slots)).length
+        }
+      }
+
+      return {
+        id: wh.id,
+        name: wh.name,
+        address: wh.address,
+        floorsCount: wh.floors_count ?? 1,
+        totalAisles,
+        totalSlots,
+        config: localCfg ?? null,
+        isDemo: false,
+        occupancyRate: metrics?.occupancy_rate ?? 0,
+        availableVolume: metrics?.available_volume ?? 0,
+        totalVolume: metrics?.max_capacity_volume ?? 0,
+      }
+    })
+
+    // If no backend warehouses at all, show the demo warehouse from localStorage context
+    if (backendItems.length === 0) {
+      const demoStats = computeOccupancyStats(MOCK_WAREHOUSE.floors[0])
+      const demoTotalSlots = MOCK_WAREHOUSE.floors.flatMap((f) => f.aisles.flatMap((a) => a.slots)).length
+      const demoTotalAisles = MOCK_WAREHOUSE.floors.reduce((s, f) => s + f.aisles.length, 0)
+      setItems([
+        {
+          id: MOCK_WAREHOUSE.id,
+          name: MOCK_WAREHOUSE.name,
+          address: MOCK_WAREHOUSE.address,
+          floorsCount: MOCK_WAREHOUSE.floors.length,
+          totalAisles: demoTotalAisles,
+          totalSlots: demoTotalSlots,
+          config: null,
+          isDemo: true,
+          occupancyRate: demoStats.occupancyRate,
+          availableVolume: demoStats.totalVolume - demoStats.usedVolume,
+          totalVolume: demoStats.totalVolume,
+        },
+      ])
     } else {
-      setItems(allItems)
+      setItems(backendItems)
     }
-    
+
     setMounted(true)
-  }, [initialWarehouses])
+  }, [initialWarehouses, metricsById])
 
   function handleDelete(id: string) {
     deleteConfig(id)
-    setItems(prev => prev.filter(item => item.config?.id !== id))
+    setItems((prev) => prev.filter((item) => item.id !== id))
   }
 
   if (!mounted) {
@@ -104,81 +145,85 @@ export default function WarehouseList({ initialWarehouses }: Props) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {items.map(({ warehouse, config, isDemo }) => {
-          const floor = warehouse.floors[0]
-          const stats = computeOccupancyStats(floor)
-          const totalAisles = warehouse.floors.reduce((s, f) => s + f.aisles.length, 0)
-          const totalSlots = warehouse.floors.flatMap((f) => f.aisles.flatMap((a) => a.slots)).length
-
-          return (
-            <div
-              key={warehouse.id}
-              className="bg-white border border-slate-200 rounded-lg p-5 hover:border-slate-300 transition-colors flex flex-col"
-            >
-              {/* Header */}
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <h3 className="text-sm font-semibold text-slate-900 truncate">{warehouse.name}</h3>
-                    {isDemo && (
-                      <span className="shrink-0 text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 border border-blue-200 rounded font-medium">
-                        Démo
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-slate-500 truncate">{warehouse.address}</p>
+        {items.map((item) => (
+          <div
+            key={item.id}
+            className="bg-white border border-slate-200 rounded-lg p-5 hover:border-slate-300 transition-colors flex flex-col"
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <h3 className="text-sm font-semibold text-slate-900 truncate">{item.name}</h3>
+                  {item.isDemo && (
+                    <span className="shrink-0 text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 border border-blue-200 rounded font-medium">
+                      Démo
+                    </span>
+                  )}
                 </div>
-                <span className={`shrink-0 ml-2 text-[10px] px-2 py-0.5 rounded border font-medium ${occupancyBadge(stats.occupancyRate)}`}>
-                  {stats.occupancyRate}%
-                </span>
+                <p className="text-xs text-slate-500 truncate">{item.address}</p>
               </div>
-
-              {/* Occupancy bar */}
-              <div className="w-full bg-slate-100 rounded-full h-1.5 mb-3">
-                <div
-                  className={`h-full rounded-full transition-all ${occupancyBar(stats.occupancyRate)}`}
-                  style={{ width: `${stats.occupancyRate}%` }}
-                />
-              </div>
-
-              {/* Stats */}
-              <div className="flex gap-3 text-xs text-slate-600 mb-4 font-medium">
-                <span>{warehouse.floors.length} étage{warehouse.floors.length > 1 ? 's' : ''}</span>
-                <span>·</span>
-                <span>{totalAisles} allée{totalAisles > 1 ? 's' : ''}</span>
-                <span>·</span>
-                <span>{totalSlots} emplacements</span>
-              </div>
-
-              {/* Volume */}
-              <div className="flex justify-between text-xs mb-4">
-                <span className="text-slate-600 font-medium">Volume disponible</span>
-                <span className="font-bold text-slate-900">
-                  {floor.aisles.flatMap((a) => a.slots).reduce((s, sl) => s + sl.totalVolume - sl.usedVolume, 0)} m³
-                </span>
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-2 mt-auto">
-                <Link
-                  href={`/client/warehouses/${warehouse.id}`}
-                  className="flex-1 h-8 flex items-center justify-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium rounded-md transition-colors"
-                >
-                  <Eye size={13} />
-                  Voir le plan
-                </Link>
-                {!isDemo && config && (
-                  <button
-                    onClick={() => handleDelete(config.id)}
-                    className="h-8 w-8 flex items-center justify-center bg-red-50 hover:bg-red-100 text-red-500 border border-red-200 rounded-md transition-colors"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                )}
-              </div>
+              <span className={`shrink-0 ml-2 text-[10px] px-2 py-0.5 rounded border font-medium ${occupancyBadge(item.occupancyRate)}`}>
+                {Math.round(item.occupancyRate)}%
+              </span>
             </div>
-          )
-        })}
+
+            {/* Occupancy bar */}
+            <div className="w-full bg-slate-100 rounded-full h-1.5 mb-3">
+              <div
+                className={`h-full rounded-full transition-all ${occupancyBar(item.occupancyRate)}`}
+                style={{ width: `${Math.min(item.occupancyRate, 100)}%` }}
+              />
+            </div>
+
+            {/* Stats */}
+            <div className="flex gap-3 text-xs text-slate-600 mb-4 font-medium">
+              <span>{item.floorsCount} étage{item.floorsCount > 1 ? 's' : ''}</span>
+              {item.totalAisles > 0 && (
+                <>
+                  <span>·</span>
+                  <span>{item.totalAisles} allée{item.totalAisles > 1 ? 's' : ''}</span>
+                </>
+              )}
+              {item.totalSlots > 0 && (
+                <>
+                  <span>·</span>
+                  <span>{item.totalSlots} emplacements</span>
+                </>
+              )}
+            </div>
+
+            {/* Volume */}
+            <div className="flex justify-between text-xs mb-4">
+              <span className="text-slate-600 font-medium">Volume disponible</span>
+              <span className="font-bold text-slate-900">
+                {item.availableVolume} m³
+                {item.totalVolume > 0 && (
+                  <span className="text-slate-400 font-normal"> / {item.totalVolume} m³</span>
+                )}
+              </span>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2 mt-auto">
+              <Link
+                href={`/client/warehouses/${item.id}`}
+                className="flex-1 h-8 flex items-center justify-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium rounded-md transition-colors"
+              >
+                <Eye size={13} />
+                Voir le plan
+              </Link>
+              {!item.isDemo && item.config && (
+                <button
+                  onClick={() => handleDelete(item.id)}
+                  className="h-8 w-8 flex items-center justify-center bg-red-50 hover:bg-red-100 text-red-500 border border-red-200 rounded-md transition-colors"
+                >
+                  <Trash2 size={13} />
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )
