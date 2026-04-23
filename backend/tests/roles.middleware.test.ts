@@ -1,7 +1,7 @@
 /// <reference types="jest" />
 
 import { Request, Response, NextFunction } from "express";
-import requireRoles from "../src/middleware/roles";
+import requireRoles from "../src/common/guards/roles.guard";
 
 describe("requireRoles middleware", () => {
   const res = {
