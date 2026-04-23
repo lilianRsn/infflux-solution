@@ -11,11 +11,12 @@ const BADGE = {
 const FACE: Record<string, string> = { N: 'Nord', S: 'Sud', E: 'Est', W: 'Ouest' }
 
 interface Props {
-  dock: LoadingDock | null
-  onClose: () => void
+  readonly dock: LoadingDock | null
+  readonly readonly: boolean
+  readonly onClose: () => void
 }
 
-export default function DockDetailPanel({ dock, onClose }: Props) {
+export default function DockDetailPanel({ dock, readonly, onClose }: Props) {
   if (!dock) {
     return (
       <div className="h-full flex items-center justify-center p-6">
@@ -60,6 +61,26 @@ export default function DockDetailPanel({ dock, onClose }: Props) {
           <p className="text-xs text-green-700">
             Dock disponible — compatible avec une livraison anticipée.
           </p>
+        </div>
+      )}
+
+      {!readonly && (
+        <div className="border-t border-slate-100 pt-3 space-y-2">
+          <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">Modifier le statut</p>
+          <div className="grid grid-cols-3 gap-1.5">
+            {(['FREE', 'OCCUPIED', 'MAINTENANCE'] as const).map((s) => (
+              <button
+                key={s}
+                disabled={dock.status === s}
+                className={`h-7 rounded-md text-xs font-medium transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${BADGE[s]} border ${
+                  s === 'FREE' ? 'border-green-200' : s === 'OCCUPIED' ? 'border-red-200' : 'border-slate-200'
+                }`}
+              >
+                {LABELS[s]}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-slate-400 italic">Édition à brancher sur l'API</p>
         </div>
       )}
     </div>

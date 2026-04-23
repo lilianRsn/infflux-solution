@@ -7,7 +7,12 @@ import WarehouseExteriorPlan from './exterior/WarehouseExteriorPlan'
 import DockList from './exterior/DockList'
 import DockDetailPanel from './exterior/DockDetailPanel'
 
-export default function ExteriorTab({ warehouse }: { warehouse: ClientWarehouse }) {
+interface Props {
+  readonly warehouse: ClientWarehouse
+  readonly readonly: boolean
+}
+
+export default function ExteriorTab({ warehouse, readonly }: Props) {
   const [selectedDock, setSelectedDock] = useState<LoadingDock | null>(null)
 
   function handleDockSelect(dock: LoadingDock) {
@@ -35,7 +40,7 @@ export default function ExteriorTab({ warehouse }: { warehouse: ClientWarehouse 
             />
           </div>
           <div className="bg-white rounded-xl border border-slate-200 min-h-[160px]">
-            <DockDetailPanel dock={selectedDock} onClose={() => setSelectedDock(null)} />
+            <DockDetailPanel dock={selectedDock} readonly={readonly} onClose={() => setSelectedDock(null)} />
           </div>
         </div>
       </div>

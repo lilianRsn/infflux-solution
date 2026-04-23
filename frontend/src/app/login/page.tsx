@@ -2,39 +2,41 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { 
+  User, 
+  ShieldCheck, 
+  Truck, 
+  Mail, 
+  Lock, 
+  ArrowRight,
+  Loader2,
+  Info
+} from 'lucide-react'
 
 type Role = 'client' | 'admin' | 'partenaire'
 
-const ROLE_CONFIG: Record<Role, {
-  label: string
-  color: string
-  accent: string
-  border: string
-  icon: string
-  hint: { email: string; password: string }
+const ROLE_CONFIG: Record<Role, { 
+  label: string; 
+  icon: React.ElementType;
+  activeClass: string;
+  hint: { email: string; password: string } 
 }> = {
   client: {
     label: 'Client',
-    color: 'text-sky-400',
-    accent: 'bg-sky-500 hover:bg-sky-400',
-    border: 'border-sky-500/40 focus:border-sky-400',
-    icon: '📦',
+    icon: User,
+    activeClass: 'border-slate-600 bg-slate-900 text-white',
     hint: { email: 'client@demo.com', password: 'client123' },
   },
   admin: {
-    label: 'Administrateur',
-    color: 'text-violet-400',
-    accent: 'bg-violet-600 hover:bg-violet-500',
-    border: 'border-violet-500/40 focus:border-violet-400',
-    icon: '⚙️',
+    label: 'Admin',
+    icon: ShieldCheck,
+    activeClass: 'border-blue-600 bg-blue-50 text-blue-700',
     hint: { email: 'admin@infflux.com', password: 'admin123' },
   },
   partenaire: {
-    label: 'Partenaire logistique',
-    color: 'text-emerald-400',
-    accent: 'bg-emerald-600 hover:bg-emerald-500',
-    border: 'border-emerald-500/40 focus:border-emerald-400',
-    icon: '🚛',
+    label: 'Partenaire',
+    icon: Truck,
+    activeClass: 'border-green-600 bg-green-50 text-green-700',
     hint: { email: 'partenaire@translog.com', password: 'partenaire123' },
   },
 }
@@ -42,7 +44,6 @@ const ROLE_CONFIG: Record<Role, {
 export default function LoginPage() {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-
   const [selectedRole, setSelectedRole] = useState<Role>('client')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -58,7 +59,6 @@ export default function LoginPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
-
     startTransition(async () => {
       try {
         const res = await fetch('/api/auth/login', {
@@ -66,14 +66,11 @@ export default function LoginPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password }),
         })
-
         const data = await res.json()
-
         if (!res.ok) {
           setError(data.error ?? 'Erreur de connexion')
           return
         }
-
         router.push(data.redirect)
       } catch {
         setError('Impossible de contacter le serveur')
@@ -82,58 +79,50 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#0a0a0f] flex items-center justify-center px-4">
-      {/* Ambient glow */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full bg-violet-900/20 blur-[120px]" />
-        <div className="absolute bottom-0 left-1/4 w-[400px] h-[400px] rounded-full bg-sky-900/15 blur-[100px]" />
+    <main className="min-h-screen bg-slate-50 flex items-center justify-center px-4 relative overflow-hidden">
+      {/* Decorative background elements */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
+        <div className="absolute -top-24 -left-24 w-96 h-96 bg-blue-100/50 rounded-full blur-3xl" />
+        <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-violet-100/50 rounded-full blur-3xl" />
       </div>
 
-      <div className="relative w-full max-w-md">
-        {/* Logo / header */}
-        <div className="mb-10 text-center">
-          <div className="inline-flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 rounded-lg bg-violet-600 flex items-center justify-center font-black text-white text-sm">
+      <div className="w-full max-w-[400px]">
+        {/* Logo & Welcome */}
+        <div className="mb-8 text-center">
+          <div className="inline-flex items-center gap-2.5 mb-4 group">
+            <div className="w-10 h-10 rounded-xl bg-slate-950 flex items-center justify-center font-black text-white text-base shadow-sm group-hover:scale-105 transition-transform">
               IF
             </div>
-            <span className="text-white font-semibold text-lg tracking-tight">Infflux</span>
+            <span className="font-bold text-slate-900 text-2xl tracking-tight">Infflux</span>
           </div>
-          <p className="text-zinc-500 text-sm">Plateforme logistique unifiée</p>
+          <h1 className="text-slate-900 text-xl font-semibold mb-1">Bon retour parmi nous</h1>
+          <p className="text-slate-500 text-sm">Identifiez-vous pour accéder à votre espace</p>
         </div>
 
         {/* Card */}
-        <div className="bg-zinc-900/80 backdrop-blur border border-zinc-800 rounded-2xl p-8 shadow-2xl">
-
+        <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-8">
           {/* Sélecteur de rôle */}
-          <div className="mb-7">
-            <p className="text-zinc-400 text-xs uppercase tracking-widest mb-3 font-medium">
-              Vous êtes
-            </p>
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Type de compte</p>
+            </div>
             <div className="grid grid-cols-3 gap-2">
               {(Object.keys(ROLE_CONFIG) as Role[]).map((role) => {
-                const c = ROLE_CONFIG[role]
-                const active = selectedRole === role
+                const Icon = ROLE_CONFIG[role].icon
+                const isActive = selectedRole === role
                 return (
                   <button
                     key={role}
                     type="button"
-                    onClick={() => {
-                      setSelectedRole(role)
-                      setEmail('')
-                      setPassword('')
-                      setError('')
-                    }}
-                    className={`
-                      flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl border text-xs font-medium
-                      transition-all duration-200 cursor-pointer
-                      ${active
-                        ? `border-zinc-600 bg-zinc-800 ${c.color}`
-                        : 'border-zinc-800 bg-zinc-900 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300'
-                      }
-                    `}
+                    onClick={() => { setSelectedRole(role); setEmail(''); setPassword(''); setError('') }}
+                    className={`flex flex-col items-center gap-2 py-3 px-2 rounded-lg border text-xs font-medium transition-all cursor-pointer ${
+                      isActive
+                        ? ROLE_CONFIG[role].activeClass
+                        : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:border-slate-300'
+                    }`}
                   >
-                    <span className="text-lg">{c.icon}</span>
-                    {c.label}
+                    <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
+                    {ROLE_CONFIG[role].label}
                   </button>
                 )
               })}
@@ -141,89 +130,81 @@ export default function LoginPage() {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-zinc-400 text-xs uppercase tracking-widest mb-1.5 font-medium">
-                Email
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-1.5">
+              <label className="flex items-center gap-2 text-xs text-slate-600 font-medium ml-1">
+                <Mail size={14} className="text-slate-400" />
+                Adresse email
               </label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder={config.hint.email}
-                className={`
-                  w-full bg-zinc-950 border rounded-xl px-4 py-3 text-white text-sm
-                  placeholder:text-zinc-700 outline-none transition-colors duration-200
-                  ${config.border}
-                `}
-              />
+              <div className="relative group">
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder={config.hint.email}
+                  className="w-full bg-white border border-slate-300 rounded-lg h-10 px-3.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all"
+                />
+              </div>
             </div>
 
-            <div>
-              <label className="block text-zinc-400 text-xs uppercase tracking-widest mb-1.5 font-medium">
-                Mot de passe
-              </label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className={`
-                  w-full bg-zinc-950 border rounded-xl px-4 py-3 text-white text-sm
-                  placeholder:text-zinc-700 outline-none transition-colors duration-200
-                  ${config.border}
-                `}
-              />
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between ml-1">
+                <label className="flex items-center gap-2 text-xs text-slate-600 font-medium">
+                  <Lock size={14} className="text-slate-400" />
+                  Mot de passe
+                </label>
+              </div>
+              <div className="relative group">
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full bg-white border border-slate-300 rounded-lg h-10 px-3.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all"
+                />
+              </div>
             </div>
 
-            {/* Error */}
             {error && (
-              <div className="bg-red-950/60 border border-red-800/50 rounded-xl px-4 py-3 text-red-400 text-sm">
+              <div className="bg-red-50 border border-red-100 rounded-lg px-3 py-2.5 text-red-800 text-xs font-medium flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-red-600" />
                 {error}
               </div>
             )}
 
-            {/* Submit */}
             <button
               type="submit"
               disabled={isPending}
-              className={`
-                w-full py-3 rounded-xl text-white font-semibold text-sm
-                transition-all duration-200 cursor-pointer
-                disabled:opacity-50 disabled:cursor-not-allowed
-                ${config.accent}
-              `}
+              className="w-full h-10 bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold rounded-lg shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98]"
             >
               {isPending ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                  </svg>
-                  Connexion…
-                </span>
-              ) : `Se connecter en tant que ${config.label}`}
+                <Loader2 size={18} className="animate-spin" />
+              ) : (
+                <>
+                  Connexion {config.label}
+                  <ArrowRight size={16} />
+                </>
+              )}
             </button>
           </form>
 
           {/* Demo autofill */}
-          <div className="mt-5 pt-5 border-t border-zinc-800">
-            <p className="text-zinc-600 text-xs text-center mb-2">Mode démo hackathon</p>
+          <div className="mt-8 pt-6 border-t border-slate-100">
             <button
               type="button"
               onClick={autofill}
-              className="w-full text-zinc-500 hover:text-zinc-300 text-xs py-2 rounded-lg border border-zinc-800 hover:border-zinc-700 transition-colors cursor-pointer"
+              className="w-full text-slate-500 hover:text-slate-900 text-xs h-9 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all cursor-pointer font-medium flex items-center justify-center gap-2"
             >
-              Remplir avec les identifiants {config.label}
+              <Info size={14} />
+              Identifiants de démonstration
             </button>
           </div>
         </div>
 
-        {/* Footer */}
-        <p className="text-center text-zinc-700 text-xs mt-6">
-          Infflux © 2025 — Solution d'optimisation logistique
+        <p className="text-center text-slate-400 text-xs mt-8">
+          &copy; 2026 Infflux &bull; Optimisation logistique intelligente
         </p>
       </div>
     </main>

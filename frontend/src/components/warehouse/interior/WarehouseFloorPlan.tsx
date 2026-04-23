@@ -67,8 +67,8 @@ export default function WarehouseFloorPlan({ floor, selectedSlot, onSlotSelect }
               y={SLOT_Y0}
               width={WALK_W}
               height={RANKS * SLOT_H}
-              fill="#fffbeb"
-              stroke="#fde68a"
+              fill="#f8fafc"
+              stroke="#e2e8f0"
               strokeWidth="0.5"
             />
 

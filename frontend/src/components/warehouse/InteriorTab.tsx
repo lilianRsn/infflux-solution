@@ -8,7 +8,12 @@ import OccupancyMetrics from './interior/OccupancyMetrics'
 import WarehouseFloorPlan from './interior/WarehouseFloorPlan'
 import SlotDetailPanel from './interior/SlotDetailPanel'
 
-export default function InteriorTab({ warehouse }: { warehouse: ClientWarehouse }) {
+interface Props {
+  readonly warehouse: ClientWarehouse
+  readonly readonly: boolean
+}
+
+export default function InteriorTab({ warehouse, readonly }: Props) {
   const [selectedFloorId, setSelectedFloorId] = useState(warehouse.floors[0].id)
   const [selectedSlot, setSelectedSlot] = useState<StorageSlot | null>(null)
 
@@ -36,7 +41,7 @@ export default function InteriorTab({ warehouse }: { warehouse: ClientWarehouse 
           />
         </div>
         <div className="w-64 shrink-0 bg-white rounded-xl border border-slate-200 min-h-[300px]">
-          <SlotDetailPanel slot={selectedSlot} onClose={() => setSelectedSlot(null)} />
+          <SlotDetailPanel slot={selectedSlot} readonly={readonly} onClose={() => setSelectedSlot(null)} />
         </div>
       </div>
     </div>

@@ -6,6 +6,7 @@ const ROLE_ROUTES: Record<string, Role[]> = {
   "/admin": ["admin"],
   "/client": ["client"],
   "/partenaire": ["partenaire"],
+  "/warehouse": ["admin", "client"],
 };
 
 export function middleware(request: NextRequest) {
@@ -45,23 +46,10 @@ export function middleware(request: NextRequest) {
   }
 
   if (pathname === "/login") {
-    return NextResponse.redirect(new URL("/" + roleToPath(role), request.url));
+    return NextResponse.redirect(new URL("/", request.url));
   }
 
   return NextResponse.next();
-}
-
-function roleToPath(role: Role | null) {
-  switch (role) {
-    case "admin":
-      return "admin/dashboard";
-    case "client":
-      return "client/commande";
-    case "partenaire":
-      return "partenaire/dashboard";
-    default:
-      return "login";
-  }
 }
 
 export const config = {

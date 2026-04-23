@@ -15,11 +15,12 @@ const BAR = {
 }
 
 interface Props {
-  slot: StorageSlot | null
-  onClose: () => void
+  readonly slot: StorageSlot | null
+  readonly readonly: boolean
+  readonly onClose: () => void
 }
 
-export default function SlotDetailPanel({ slot, onClose }: Props) {
+export default function SlotDetailPanel({ slot, readonly, onClose }: Props) {
   if (!slot) {
     return (
       <div className="h-full flex items-center justify-center p-6">
@@ -65,11 +66,28 @@ export default function SlotDetailPanel({ slot, onClose }: Props) {
       <div className="space-y-1.5 text-sm border-t border-slate-100 pt-3">
         <Row label="Rang" value={String(slot.rank)} />
         <Row label="Côté" value={slot.side === 'L' ? 'Gauche' : 'Droite'} />
-        <Row
-          label="Mise à jour"
-          value={new Date(slot.updatedAt).toLocaleDateString('fr-FR')}
-        />
+        <Row label="Mise à jour" value={new Date(slot.updatedAt).toLocaleDateString('fr-FR')} />
       </div>
+
+      {!readonly && (
+        <div className="border-t border-slate-100 pt-3 space-y-2">
+          <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">Modifier le statut</p>
+          <div className="grid grid-cols-3 gap-1.5">
+            {(['FREE', 'PARTIAL', 'FULL'] as const).map((s) => (
+              <button
+                key={s}
+                disabled={slot.status === s}
+                className={`h-7 rounded-md text-xs font-medium transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${BADGE[s]} border ${
+                  s === 'FREE' ? 'border-green-200' : s === 'PARTIAL' ? 'border-amber-200' : 'border-red-200'
+                }`}
+              >
+                {LABELS[s]}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-slate-400 italic">Édition à brancher sur l'API</p>
+        </div>
+      )}
     </div>
   )
 }

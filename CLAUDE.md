@@ -251,3 +251,146 @@ Approche pragmatique pour le hackathon : JWT simple transmis via header `Authori
 - Variable `NEXT_PUBLIC_API_URL` côté front pour pointer vers l'API
 - CORS configuré côté API pour autoriser l'origine du front
 
+## Design system
+
+Référence visuelle unique pour toutes les interfaces (admin, client, partenaire). Toute nouvelle page ou composant doit pouvoir être posé à côté d'un écran existant sans rupture visuelle.
+
+**Inspiration** : dashboards SaaS B2B modernes (Linear, Vercel, Stripe Dashboard) — palette neutre claire, accent coloré unique, forte lisibilité, composants compacts.
+
+> Pas de dark mode pour le hackathon (reporté post-hackathon).
+
+### Philosophie visuelle
+
+- **Clair et neutre** — fond principal blanc, surfaces secondaires en gris très clair (`slate-50/100`). Pas de couleurs saturées en aplat, sauf pour l'accent d'action et les indicateurs sémantiques.
+- **Dense mais lisible** — composants compacts (hauteur boutons et inputs 36px), padding serré dans les cards, contraste typographique suffisant pour absorber beaucoup de données d'un coup d'œil.
+- **Plat** — pas de gradient, pas d'ombre portée, pas de glassmorphism. Bordures fines à 0.5px–1px en gris neutre.
+- **Angles doux** — radius 6–8px sur tous les éléments. Jamais d'angles droits, jamais de pill (sauf badges).
+
+### Palette de couleurs
+
+Palettes Tailwind natives : `slate` (base) et `blue` (accent). Rien à configurer.
+
+**Neutres**
+
+| Token | Classe Tailwind | Hex | Usage |
+|---|---|---|---|
+| Fond de page | `bg-slate-50` | `#F8FAFC` | Fond principal |
+| Surfaces secondaires | `bg-slate-100` | `#F1F5F9` | Hover backgrounds |
+| Bordures par défaut | `border-slate-200` | `#E2E8F0` | Cards, dividers |
+| Bordures d'inputs | `border-slate-300` | `#CBD5E1` | Inputs, séparateurs |
+| Texte secondaire | `text-slate-500` | `#64748B` | Labels, métadonnées |
+| Texte courant | `text-slate-700` | `#334155` | Corps de texte |
+| Titres / texte fort | `text-slate-900` | `#0F172A` | H1, H2, hover actions |
+| Accent principal | `bg-blue-600` | `#2563EB` | Boutons primaires, liens, focus ring |
+| Accent hover | `bg-blue-700` | `#1D4ED8` | Hover bouton primaire |
+| Fond badge info | `bg-blue-100` | `#DBEAFE` | Badges, fond info |
+| Texte badge info | `text-blue-800` | `#1E40AF` | Texte sur fond blue-50 |
+
+**Sémantiques**
+
+| État | Fond | Texte | Bordure |
+|---|---|---|---|
+| Success | `green-50` `#F0FDF4` | `green-800` `#166534` | `green-200` |
+| Warning | `amber-50` `#FFFBEB` | `amber-800` `#92400E` | `amber-200` |
+| Danger | `red-50` `#FEF2F2` | `red-800` `#991B1B` | `red-200` |
+| Info | `blue-50` `#EFF6FF` | `blue-800` `#1E40AF` | `blue-200` |
+
+> **Règle** : le texte sur fond coloré utilise toujours la nuance `800` ou `900` de la même famille. Jamais de noir sur fond coloré.
+
+### Typographie
+
+- **Police principale** : Inter — chargée via `next/font/google`
+- **Police monospace** : JetBrains Mono — pour IDs techniques, codes commande, numéros de plaque
+
+| Niveau | Taille | Weight | Leading | Usage |
+|---|---|---|---|---|
+| H1 | 24px | 600 | 1.3 | Titres de page |
+| H2 | 18px | 600 | 1.4 | Titres de section |
+| H3 | 15px | 500 | 1.5 | Titres de card, libellés forts |
+| Body | 14px | 400 | 1.6 | Texte courant |
+| Small | 12px | 400 | 1.5 | Labels, texte secondaire, métadonnées |
+| Mono | 12px | 400 | — | Identifiants techniques |
+
+**Règles** :
+- Deux weights uniquement : `400` et `500`/`600`. Jamais `700`.
+- Pas de bold en milieu de phrase — les entités techniques passent en `code` monospace.
+- Sentence case partout. Pas de Title Case, pas d'ALL CAPS (sauf badges très courts en petites capitales).
+
+### Espacement et radius
+
+- Grille de base 4px — tous les espacements sont multiples de 4
+- Padding card : 14–16px
+- Gap entre éléments d'une liste : 8–12px
+- Gap entre sections : 16–24px
+- **Radius petit** (inputs, boutons, badges) : 6px
+- **Radius moyen** (cards, modals) : 8px
+- Bordures : toujours 1px (0.5px en SVG), jamais plus — sauf accent de sélection (2px)
+
+### Composants clés
+
+**Boutons**
+
+| Variant | Style |
+|---|---|
+| Primaire | `bg-blue-600 text-white hover:bg-blue-700` — h-9, px-4, radius 6px, weight 500 |
+| Secondaire | `bg-white text-slate-900 border-slate-300 hover:bg-slate-50` — mêmes dimensions |
+| Tertiaire | `text-blue-600 hover:bg-blue-50` — pas de bordure |
+| Danger | `bg-red-50 text-red-800 border-red-200` — actions destructives uniquement |
+
+**Inputs et selects**
+
+- Fond blanc, `border-slate-300`, radius 6px, hauteur 36px, padding horizontal 12px
+- Focus : `border-blue-600 ring-2 ring-blue-600/20`
+- Texte 14px `slate-900`, placeholder `slate-400`
+- Label au-dessus : 12px, `slate-500`, weight 500, marge 4px sous le label
+
+**Cards**
+
+- `bg-white border-slate-200` radius 8px, padding 14–16px, pas d'ombre
+- Hover interactif : `border-slate-300` ou `bg-slate-50`
+
+**Badges / chips**
+
+- Padding `py-[3px] px-[10px]`, radius 4px, 12px, weight 500
+- Fond et texte depuis la palette sémantique — icône optionnelle 12px max
+
+**Tableaux**
+
+- En-tête : `text-slate-500 text-xs font-medium` avec léger `tracking-wide`
+- Lignes : `text-slate-900 text-sm border-b border-slate-200`, hover `bg-slate-50`
+- Pas de zébrage (distrait sur gros volumes de données)
+
+**Icônes**
+
+- Bibliothèque : `lucide-react`
+- Tailles : 16px inline, 20px dans boutons/headers, 24px max décoratif
+- Couleur héritée du texte environnant, sauf cas sémantique
+
+### Layout général
+
+- Largeur max contenu : **1280px centré** — sauf dashboards fullscreen
+- Navigation principale : sidebar gauche 240px fixe, `bg-white border-r border-slate-200`
+- Header de page : 64px, `bg-white border-b border-slate-200` — titre + actions contextuelles
+- Fond de page : `bg-slate-50`
+- Overlay modal : `bg-slate-900/40`
+
+### Ce qu'il faut éviter
+
+- Gradients, ombres portées, glassmorphism, glows
+- Couleurs saturées en grand aplat (fond violet vif, fond bleu roi plein)
+- Icônes emoji — utiliser `lucide-react`
+- Polices autres qu'Inter + JetBrains Mono
+- Radius supérieur à 12px (sauf pill sur badge ultra court)
+- Weight 700 ou plus
+- Texte centré sur contenus longs
+- Animations décoratives — uniquement des transitions d'état courtes (150–200ms)
+
+### Configuration technique recommandée
+
+- **Tailwind CSS** avec palette par défaut (`slate` + `blue` + sémantiques) — pas de `theme.extend` nécessaire pour le hackathon
+- **shadcn/ui** pour les composants de base (`Button`, `Input`, `Select`, `Dialog`, `Table`, `Card`, `Badge`, `Tabs`) — preset "Slate" + accent "Blue" couvre 90% du design system
+- **`next/font/google`** pour charger Inter et JetBrains Mono
+- Installation shadcn : `npx shadcn@latest init` avec `--style default --base-color slate`
+
+> En cas de doute sur un composant, s'inspirer d'une page existante du projet plutôt que d'importer un style extérieur. Les PR introduisant de nouvelles couleurs, polices ou radius sans justification sont refusées par défaut.
+

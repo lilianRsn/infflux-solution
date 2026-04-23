@@ -67,9 +67,9 @@ export async function POST(request: NextRequest) {
       .sign(JWT_SECRET);
 
     const redirects: Record<Role, string> = {
-      admin: "/admin/dashboard",
-      client: "/client/commande",
-      partenaire: "/partenaire/dashboard",
+      admin: "/",
+      client: "/",
+      partenaire: "/",
     };
 
     const response = NextResponse.json({
