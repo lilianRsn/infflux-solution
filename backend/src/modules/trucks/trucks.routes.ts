@@ -4,12 +4,14 @@ import {
   createTruckHandler,
   deleteTruckHandler,
   getTruckByIdHandler,
+  listAvailableTrucksHandler,
   listTrucksHandler,
   updateTruckHandler,
 } from "./trucks.controller";
 
 const router = Router();
 
+router.get("/available", requireRoles("admin"), listAvailableTrucksHandler);
 router.get("/", requireRoles("admin"), listTrucksHandler);
 router.get("/:id", requireRoles("admin"), getTruckByIdHandler);
 router.post("/", requireRoles("admin"), createTruckHandler);

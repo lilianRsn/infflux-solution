@@ -4,6 +4,7 @@ import { ChevronLeft } from 'lucide-react'
 import { getSessionUser } from '@/lib/server-auth'
 import Navbar from '@/components/layout/Navbar'
 import WarehouseViewer from '@/components/warehouse/WarehouseViewer'
+import WarehouseOrders from '@/components/warehouse/WarehouseOrders'
 import { fetchBackend } from '@/lib/api'
 
 interface Props {
@@ -19,30 +20,43 @@ export default async function WarehouseViewPage({ params }: Props) {
 
   let warehouseMeta = null
   try {
-    // We only fetch basic metadata, since the detailed layout is local for hackathon
     warehouseMeta = await fetchBackend<any>(`/api/client-warehouses/${id}/layout`)
   } catch (error) {
     console.error('Failed to fetch warehouse metadata:', error)
-    // If it's a demo warehouse like 'wh-001' not in backend, we ignore backend error
     if (!id.startsWith('wh-')) {
       return notFound()
     }
   }
 
+  const backHref =
+    user.role === 'client'
+      ? '/client/warehouses'
+      : `/admin/clients/${warehouseMeta?.client_id || ''}`
+
+  const backLabel = user.role === 'client' ? 'Mes entrepôts' : 'Détails client'
+
   return (
     <div className="min-h-screen bg-slate-50">
       <Navbar user={user} />
-      <main className="max-w-6xl mx-auto px-6 py-8">
-        <div className="mb-6">
+      <main className="max-w-6xl mx-auto px-6 py-8 space-y-8">
+        <div>
           <Link
-            href={user.role === 'client' ? '/client/warehouses' : `/admin/clients/${warehouseMeta?.client_id || ''}`}
+            href={backHref}
             className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-4 transition-colors"
           >
             <ChevronLeft size={15} />
-            {user.role === 'client' ? 'Mes entrepôts' : 'Détails client'}
+            {backLabel}
           </Link>
+          <WarehouseViewer id={id} readonly={readonly} backendMeta={warehouseMeta} />
         </div>
-        <WarehouseViewer id={id} readonly={readonly} backendMeta={warehouseMeta} />
+
+        {/* Commandes entrantes pour cet entrepôt */}
+        <div>
+          <WarehouseOrders
+            warehouseId={id}
+            userRole={user.role as 'admin' | 'client' | 'partner'}
+          />
+        </div>
       </main>
     </div>
   )

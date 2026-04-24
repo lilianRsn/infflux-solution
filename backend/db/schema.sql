@@ -118,6 +118,8 @@ CREATE TABLE orders (
   promised_delivery_date DATE,
   promised_time_window TEXT,
   service_level TEXT,
+  assigned_truck_id UUID,
+  assigned_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -224,3 +226,6 @@ CREATE TABLE delivery_plan_docks (
   UNIQUE (delivery_plan_id, loading_dock_id),
   UNIQUE (delivery_plan_id, truck_id)
 );
+
+ALTER TABLE orders ADD CONSTRAINT orders_assigned_truck_fk
+  FOREIGN KEY (assigned_truck_id) REFERENCES trucks(id) ON DELETE SET NULL;

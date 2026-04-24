@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ClientWarehouse, StorageSlot } from '@/lib/warehouse-data'
 import InteriorTab from './InteriorTab'
 import ExteriorTab from './ExteriorTab'
@@ -20,6 +20,16 @@ interface Props {
 export default function WarehouseLayout({ warehouse: initialWarehouse, readonly }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('interior')
   const [warehouse, setWarehouse] = useState<ClientWarehouse>(initialWarehouse)
+  const [reservedPallets, setReservedPallets] = useState(0)
+
+  useEffect(() => {
+    const id = initialWarehouse.id
+    if (!id || id.startsWith('wh-')) return
+    fetch(`/api/client-warehouses/${id}/occupancy-metrics`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data?.reserved_pallets != null) setReservedPallets(Number(data.reserved_pallets)) })
+      .catch(() => {})
+  }, [initialWarehouse.id])
 
   const handleSlotUpdate = (updatedSlot: StorageSlot) => {
     setWarehouse(prev => ({
@@ -73,10 +83,11 @@ export default function WarehouseLayout({ warehouse: initialWarehouse, readonly 
       </div>
 
       {activeTab === 'interior' ? (
-        <InteriorTab 
-          warehouse={warehouse} 
-          readonly={readonly} 
+        <InteriorTab
+          warehouse={warehouse}
+          readonly={readonly}
           onSlotUpdate={handleSlotUpdate}
+          reservedPallets={reservedPallets}
         />
       ) : (
         <ExteriorTab warehouse={warehouse} readonly={readonly} />

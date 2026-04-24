@@ -102,6 +102,16 @@ export async function updateTruck(truckId: string, body: UpdateTruckBody) {
   return result.rows[0];
 }
 
+export async function listAvailableTrucks(minPallets?: number) {
+  const result = minPallets
+    ? await pool.query(
+        `SELECT * FROM trucks WHERE status = 'AVAILABLE' AND max_palettes >= $1 ORDER BY max_palettes ASC`,
+        [minPallets]
+      )
+    : await pool.query(`SELECT * FROM trucks WHERE status = 'AVAILABLE' ORDER BY max_palettes ASC`);
+  return result.rows;
+}
+
 export async function deleteTruck(truckId: string) {
   const cur = await pool.query(`SELECT id, status FROM trucks WHERE id = $1`, [truckId]);
   if (!cur.rows.length) throw new AppError("Truck not found", 404);

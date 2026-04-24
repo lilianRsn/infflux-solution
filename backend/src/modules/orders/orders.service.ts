@@ -178,8 +178,8 @@ export async function createOrder(body: CreateOrderBody, user: AuthUser) {
         service_level
       )
       VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,
-        $13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,
+        $12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,
         'pending','UNPLANNED',$25,$26,$27,$28,$29,$30,$31,$32,$33
       )
       RETURNING *
@@ -287,6 +287,102 @@ export async function getAllOrders() {
   );
 
   return result.rows;
+}
+
+export async function getOrdersByWarehouse(warehouseId: string, user: AuthUser) {
+  if (user.role === "client") {
+    const check = await pool.query(
+      `SELECT id FROM client_warehouses WHERE id = $1 AND client_id = $2`,
+      [warehouseId, user.id]
+    );
+    if (!check.rows.length) throw new AppError("Forbidden", 403);
+  }
+
+  const result = await pool.query(
+    `
+    SELECT
+      o.*,
+      t.name  AS truck_name,
+      t.license_plate AS truck_plate,
+      t.max_palettes  AS truck_max_palettes
+    FROM orders o
+    LEFT JOIN trucks t ON t.id = o.assigned_truck_id
+    WHERE o.destination_warehouse_id = $1
+    ORDER BY o.created_at DESC
+    `,
+    [warehouseId]
+  );
+
+  return result.rows;
+}
+
+export async function assignOrderToTruck(
+  orderId: string,
+  truckId: string,
+  destinationWarehouseId: string | undefined,
+  user: AuthUser
+) {
+  if (user.role !== "admin") throw new AppError("Only admins can assign orders", 403);
+
+  const orderResult = await pool.query(`SELECT * FROM orders WHERE id = $1`, [orderId]);
+  if (!orderResult.rows.length) throw new AppError("Order not found", 404);
+  const order = orderResult.rows[0];
+
+  if (order.status === "assigned") throw new AppError("Order is already assigned", 400);
+
+  const truckResult = await pool.query(`SELECT * FROM trucks WHERE id = $1`, [truckId]);
+  if (!truckResult.rows.length) throw new AppError("Truck not found", 404);
+  const truck = truckResult.rows[0];
+
+  if (truck.status !== "AVAILABLE") throw new AppError("Truck is not available", 400);
+
+  if (truck.max_palettes < order.total_pallets) {
+    throw new AppError(
+      `Capacité insuffisante : camion ${truck.max_palettes} pal., commande ${order.total_pallets} pal.`,
+      400
+    );
+  }
+
+  if (destinationWarehouseId && destinationWarehouseId !== order.destination_warehouse_id) {
+    const alt = await pool.query(
+      `SELECT id, client_id FROM client_warehouses WHERE id = $1`,
+      [destinationWarehouseId]
+    );
+    if (!alt.rows.length) throw new AppError("Entrepôt alternatif introuvable", 404);
+
+    if (order.destination_warehouse_id) {
+      const orig = await pool.query(
+        `SELECT client_id FROM client_warehouses WHERE id = $1`,
+        [order.destination_warehouse_id]
+      );
+      if (orig.rows.length && alt.rows[0].client_id !== orig.rows[0].client_id) {
+        throw new AppError("L'entrepôt alternatif doit appartenir au même client", 400);
+      }
+    }
+  }
+
+  const newDestination = destinationWarehouseId ?? order.destination_warehouse_id;
+
+  await pool.query(
+    `
+    UPDATE orders
+    SET
+      status                   = 'assigned',
+      planning_status          = 'PLANNED',
+      assigned_truck_id        = $2,
+      assigned_at              = NOW(),
+      destination_warehouse_id = $3
+    WHERE id = $1
+    `,
+    [orderId, truckId, newDestination]
+  );
+
+  return {
+    message: "Commande assignée avec succès",
+    order_id: orderId,
+    truck_id: truckId,
+    destination_warehouse_id: newDestination,
+  };
 }
 
 export async function getOrderById(orderId: string, user: AuthUser) {
