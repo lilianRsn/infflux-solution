@@ -31,8 +31,8 @@ export function middleware(request: NextRequest) {
   try {
     const payload = token.split(".")[1];
     if (!payload) throw new Error("missing-payload");
-    const decoded = JSON.parse(atob(payload)) as { user?: { role?: Role } };
-    role = decoded.user?.role ?? null;
+    const decoded = JSON.parse(atob(payload)) as { role?: Role; user?: { role?: Role } };
+    role = decoded.role ?? decoded.user?.role ?? null;
   } catch {
     const response = NextResponse.redirect(new URL("/login", request.url));
     response.cookies.delete("infflux_token");
