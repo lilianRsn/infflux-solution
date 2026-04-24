@@ -3,7 +3,17 @@ import { AppError } from "../../common/errors/app-error";
 import { computeFlexibilityScore, validateOrderPayload } from "./orders.utils";
 import { AuthUser, CreateOrderBody, CustomerInput } from "./orders.types";
 
-async function resolveCustomerData(body: CreateOrderBody, user: AuthUser): Promise<{ customerId: string | null; customer: CustomerInput }> {
+type ClientWarehouseRecord = {
+  id: string;
+  client_id: string;
+  name: string;
+  address: string;
+};
+
+async function resolveCustomerData(
+  body: CreateOrderBody,
+  user: AuthUser
+): Promise<{ customerId: string; customer: CustomerInput }> {
   if (user.role === "client") {
     const userResult = await pool.query(
       `
@@ -39,14 +49,45 @@ async function resolveCustomerData(body: CreateOrderBody, user: AuthUser): Promi
     };
   }
 
-  if (!body.customer) {
-    throw new AppError("customer is required for admin-created orders", 400);
+  if (!body.customer?.customer_id) {
+    throw new AppError("customer.customer_id is required for admin-created orders", 400);
   }
 
   return {
-    customerId: body.customer.customer_id || null,
+    customerId: body.customer.customer_id,
     customer: body.customer
   };
+}
+
+async function resolveClientWarehouse(
+  clientWarehouseId: string,
+  user: AuthUser,
+  customerId: string
+): Promise<ClientWarehouseRecord> {
+  const result = await pool.query(
+    `
+    SELECT id, client_id, name, address
+    FROM client_warehouses
+    WHERE id = $1
+    `,
+    [clientWarehouseId]
+  );
+
+  if (!result.rows.length) {
+    throw new AppError("Client warehouse not found", 404);
+  }
+
+  const warehouse = result.rows[0] as ClientWarehouseRecord;
+
+  if (user.role === "client" && warehouse.client_id !== user.id) {
+    throw new AppError("You can only create orders for your own warehouses", 403);
+  }
+
+  if (warehouse.client_id !== customerId) {
+    throw new AppError("client_warehouse_id does not belong to the selected customer", 400);
+  }
+
+  return warehouse;
 }
 
 export async function createOrder(body: CreateOrderBody, user: AuthUser) {
@@ -58,6 +99,7 @@ export async function createOrder(body: CreateOrderBody, user: AuthUser) {
 
   const { delivery_destination, order_lines, delivery_need, destination_warehouse_id } = body;
   const { customerId, customer } = await resolveCustomerData(body, user);
+  const clientWarehouse = await resolveClientWarehouse(body.client_warehouse_id, user, customerId);
 
   const totalPallets = order_lines.reduce(
     (sum, line) => sum + Number(line.quantity_pallets),
@@ -91,7 +133,6 @@ export async function createOrder(body: CreateOrderBody, user: AuthUser) {
       : "optimized";
 
   const orderNumber = `ORD-${Date.now()}`;
-
   const dbClient = await pool.connect();
 
   try {
@@ -124,6 +165,7 @@ export async function createOrder(body: CreateOrderBody, user: AuthUser) {
         split_delivery_allowed,
         partner_delivery_allowed,
         status,
+        planning_status,
         total_pallets,
         eligible_for_early_delivery,
         eligible_for_grouped_delivery,
@@ -150,10 +192,10 @@ export async function createOrder(body: CreateOrderBody, user: AuthUser) {
         customer.main_contact_name || null,
         customer.main_contact_phone || null,
         customer.main_contact_email || null,
-        delivery_destination.delivery_address,
-        delivery_destination.site_name || null,
-        delivery_destination.delivery_contact_name || null,
-        delivery_destination.delivery_contact_phone || null,
+        body.delivery_destination?.delivery_address || clientWarehouse.address,
+        body.delivery_destination?.site_name || clientWarehouse.name,
+        body.delivery_destination?.delivery_contact_name || null,
+        body.delivery_destination?.delivery_contact_phone || null,
         delivery_need.requested_delivery_date,
         delivery_need.delivery_time_window,
         delivery_need.urgency_level,
@@ -196,6 +238,8 @@ export async function createOrder(body: CreateOrderBody, user: AuthUser) {
       order: {
         order_id: order.id,
         order_number: order.order_number,
+        client_warehouse_id: order.client_warehouse_id,
+        planning_status: order.planning_status,
         status: order.status,
         created_at: order.created_at,
         total_pallets: order.total_pallets,

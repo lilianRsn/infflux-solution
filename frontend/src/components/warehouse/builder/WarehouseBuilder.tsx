@@ -436,7 +436,7 @@ export default function WarehouseBuilder({ existingWarehouses = [] }: Props) {
                   onClick={() => setActiveFloorIdx(fi)}
                   className={`px-3 py-1 text-xs rounded-md transition-colors ${
                     activeFloorIdx === fi
-                      ? 'bg-slate-900 text-white'
+                      ? 'bg-blue-50 border border-blue-100 text-blue-700'
                       : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-300'
                   }`}
                 >

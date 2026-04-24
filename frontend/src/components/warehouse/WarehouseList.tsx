@@ -217,7 +217,7 @@ export default function WarehouseList({ initialWarehouses, metricsById }: Props)
             <div className="flex gap-2 mt-auto">
               <Link
                 href={`/client/warehouses/${item.id}`}
-                className="flex-1 h-8 flex items-center justify-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium rounded-md transition-colors"
+                className="flex-1 h-8 flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-md transition-colors"
               >
                 <Eye size={13} />
                 Voir le plan

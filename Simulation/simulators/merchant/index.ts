@@ -1,5 +1,6 @@
 import { defaultScenario } from "./scenarios/default";
 import { runMerchant } from "./runner";
+import { ApiError } from "../shared/api-client";
 
 async function main() {
   const report = await runMerchant(defaultScenario);
@@ -9,13 +10,16 @@ async function main() {
 }
 
 main().catch((err) => {
-  process.stderr.write(
-    JSON.stringify({
-      ts: new Date().toISOString(),
-      level: "error",
-      action: "fatal",
-      message: err instanceof Error ? err.message : String(err)
-    }) + "\n"
-  );
+  const payload: Record<string, unknown> = {
+    ts: new Date().toISOString(),
+    level: "error",
+    action: "fatal",
+    message: err instanceof Error ? err.message : String(err)
+  };
+  if (err instanceof ApiError) {
+    payload.status = err.status;
+    payload.body = err.body;
+  }
+  process.stderr.write(JSON.stringify(payload) + "\n");
   process.exitCode = 1;
 });

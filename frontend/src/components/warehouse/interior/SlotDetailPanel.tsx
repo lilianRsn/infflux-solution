@@ -140,7 +140,7 @@ export default function SlotDetailPanel({ slot, aisleCode, readonly, onClose, on
               <button
                 onClick={handleSave}
                 disabled={isSaving || usedVolume === slot.usedVolume}
-                className="h-9 px-3 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-100 text-white disabled:text-slate-400 rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm active:scale-95"
+                className="h-9 px-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-100 text-white disabled:text-slate-400 rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm active:scale-95"
               >
                 {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                 <span className="text-xs font-bold uppercase tracking-tight">Sauver</span>
