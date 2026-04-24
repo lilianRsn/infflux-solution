@@ -17,10 +17,9 @@ import type { Order, ClientUser, WarehouseAvailability } from '@/types/order'
 const PIE_COLORS = ['#534AB7', '#1D9E75', '#BA7517', '#888888']
 
 const badgeClass: Record<string, string> = {
-  partenaire: 'bg-[#EAF3DE] text-[#3B6D11]',
-  groupée:    'bg-[#E6F1FB] text-[#185FA5]',
-  anticipée:  'bg-[#FAEEDA] text-[#854F0B]',
-  standard:   'bg-gray-100 text-gray-500',
+  groupée:   'bg-[#E6F1FB] text-[#185FA5]',
+  anticipée: 'bg-[#FAEEDA] text-[#854F0B]',
+  standard:  'bg-gray-100 text-gray-500',
 }
 
 const alertClass: Record<string, string> = {
@@ -31,8 +30,7 @@ const alertClass: Record<string, string> = {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function orderType(o: Order): 'partenaire' | 'groupée' | 'anticipée' | 'standard' {
-  if (o.eligible_for_partner_carrier)  return 'partenaire'
+function orderType(o: Order): 'groupée' | 'anticipée' | 'standard' {
   if (o.eligible_for_grouped_delivery) return 'groupée'
   if (o.eligible_for_early_delivery)   return 'anticipée'
   return 'standard'
@@ -125,8 +123,7 @@ function buildDashboard(
     const dayOrders = orders.filter(o => orderLocalDate(o) === date)
     const dayOpt    = dayOrders.filter(o =>
       o.eligible_for_early_delivery ||
-      o.eligible_for_grouped_delivery ||
-      o.eligible_for_partner_carrier,
+      o.eligible_for_grouped_delivery,
     )
     return { j: shortDayLabel(date), total: dayOrders.length, opt: dayOpt.length }
   })
@@ -136,23 +133,21 @@ function buildDashboard(
     const dayOrders = orders.filter(o => orderLocalDate(o) === date)
     return {
       j:         shortDayLabel(date),
-      groupage:  dayOrders.filter(o => o.eligible_for_grouped_delivery && !o.eligible_for_partner_carrier).length,
-      anticipee: dayOrders.filter(o => o.eligible_for_early_delivery && !o.eligible_for_grouped_delivery && !o.eligible_for_partner_carrier).length,
-      standard:  dayOrders.filter(o => !o.eligible_for_grouped_delivery && !o.eligible_for_early_delivery && !o.eligible_for_partner_carrier).length,
+      groupage:  dayOrders.filter(o => o.eligible_for_grouped_delivery).length,
+      anticipee: dayOrders.filter(o => o.eligible_for_early_delivery && !o.eligible_for_grouped_delivery).length,
+      standard:  dayOrders.filter(o => !o.eligible_for_grouped_delivery && !o.eligible_for_early_delivery).length,
     }
   })
 
   // Donut — répartition globale
   const total  = orders.length || 1
-  const pCount = orders.filter(o => o.eligible_for_partner_carrier).length
-  const gCount = orders.filter(o => o.eligible_for_grouped_delivery && !o.eligible_for_partner_carrier).length
-  const aCount = orders.filter(o => o.eligible_for_early_delivery && !o.eligible_for_grouped_delivery && !o.eligible_for_partner_carrier).length
-  const sCount = orders.length - pCount - gCount - aCount
+  const gCount = orders.filter(o => o.eligible_for_grouped_delivery).length
+  const aCount = orders.filter(o => o.eligible_for_early_delivery && !o.eligible_for_grouped_delivery).length
+  const sCount = orders.length - gCount - aCount
   const pieData = [
-    { name: 'Standard',    value: Math.round((sCount / total) * 100) },
-    { name: 'Groupées',    value: Math.round((gCount / total) * 100) },
-    { name: 'Anticipées',  value: Math.round((aCount / total) * 100) },
-    { name: 'Partenaires', value: Math.round((pCount / total) * 100) },
+    { name: 'Standard',   value: Math.round((sCount / total) * 100) },
+    { name: 'Groupées',   value: Math.round((gCount / total) * 100) },
+    { name: 'Anticipées', value: Math.round((aCount / total) * 100) },
   ].filter(d => d.value > 0)
 
   // Stats rapides — uniquement depuis orders (toujours peuplées)
