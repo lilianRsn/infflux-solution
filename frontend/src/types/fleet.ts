@@ -1,6 +1,12 @@
 export type TruckStatus = 'AVAILABLE' | 'ON_ROUTE' | 'LOADING' | 'MAINTENANCE'
-export type PlanStatus  = 'DRAFT' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'BLOCKED'
-export type TimeWindow  = 'morning' | 'afternoon' | 'full_day'
+export type PlanStatus = 'DRAFT' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'BLOCKED'
+export type TimeWindow = 'morning' | 'afternoon' | 'full_day'
+export type PlanningStatus =
+  | 'UNPLANNED'
+  | 'PARTIALLY_PLANNED'
+  | 'PLANNED'
+  | 'BLOCKED'
+  | 'DELIVERED'
 
 export interface Truck {
   id: string
@@ -43,7 +49,7 @@ export interface PlanOrder {
   delivery_time_window: TimeWindow
   urgency_level: 'urgent' | 'standard' | 'flexible'
   total_pallets: number
-  planning_status: string
+  planning_status: PlanningStatus
   allocated_pallets: number
 }
 
@@ -82,6 +88,7 @@ export interface GeneratePlansResult {
   partially_planned_count: number
   generated_plans: Array<{
     delivery_plan_id: string
+    order_id: string
     order_number: string
     allocated_pallets: number
     trucks: string[]
@@ -89,6 +96,39 @@ export interface GeneratePlansResult {
     planned_delivery_date: string
     planned_time_window: TimeWindow
   }>
-  blocked_orders: Array<{ order_number: string; blocked_reason: string }>
-  partially_planned_orders: Array<{ order_number: string; remaining_pallets: number; blocked_reason: string }>
+  blocked_orders: Array<{
+    order_id: string
+    order_number: string
+    blocked_reason: string
+  }>
+  partially_planned_orders: Array<{
+    order_id: string
+    order_number: string
+    remaining_pallets: number
+    blocked_reason: string
+  }>
+}
+
+export interface AdminPlanningOrder {
+  id: string
+  order_number: string
+  customer_id: string | null
+  client_warehouse_id: string | null
+  company_name: string
+  site_name: string | null
+  requested_delivery_date: string
+  delivery_time_window: TimeWindow
+  urgency_level: 'urgent' | 'standard' | 'flexible'
+  planning_status: PlanningStatus
+  blocked_reason: string | null
+  total_pallets: number
+  split_delivery_allowed: boolean
+  created_at: string
+}
+
+export interface ReprogramOrderPayload {
+  requested_delivery_date?: string
+  delivery_time_window?: TimeWindow
+  urgency_level?: 'urgent' | 'standard' | 'flexible'
+  auto_replan?: boolean
 }
