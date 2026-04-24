@@ -13,7 +13,9 @@ import { computeSlotPayload, occupationCartons } from "./slot-payload";
 import {
   registerStock,
   StockRegistration,
-  WarehouseRegistrationParams
+  WarehouseRegistrationParams,
+  ensureDocks,
+  DEFAULT_DOCKS
 } from "./register-stock";
 
 /**
@@ -99,6 +101,8 @@ export async function ensureStockRegistration(
       }
     }
   }
+
+  await ensureDocks(client, ours.id, params.docks ?? DEFAULT_DOCKS);
 
   return {
     warehouse_id: ours.id,

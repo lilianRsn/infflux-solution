@@ -141,7 +141,8 @@ export async function runMerchant(scenario: MerchantScenario): Promise<RunReport
         destination: scenario.destination,
         policy: scenario.order_policy,
         now: new Date(),
-        rng
+        rng,
+        client_warehouse_id: registration.warehouse_id
       });
 
       if (!body) {

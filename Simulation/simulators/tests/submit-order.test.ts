@@ -88,7 +88,8 @@ describe("buildCreateOrderBody", () => {
       destination,
       policy,
       now,
-      rng: makeRng(1)
+      rng: makeRng(1),
+        client_warehouse_id: "wh-test"
     });
     expect(body).toBeNull();
   });
@@ -101,7 +102,8 @@ describe("buildCreateOrderBody", () => {
       destination,
       policy,
       now,
-      rng: makeRng(1)
+      rng: makeRng(1),
+        client_warehouse_id: "wh-test"
     });
     expect(body).not.toBeNull();
     expect(body!.order_lines.length).toBeGreaterThan(0);
@@ -117,7 +119,8 @@ describe("buildCreateOrderBody", () => {
       destination,
       policy,
       now,
-      rng: makeRng(7)
+      rng: makeRng(7),
+        client_warehouse_id: "wh-test"
     });
     expect(body).not.toBeNull();
     expect(body!.customer.company_name).toBe("Marchand A");
@@ -136,7 +139,8 @@ describe("buildCreateOrderBody", () => {
         destination,
         policy,
         now,
-        rng: makeRng(seed)
+        rng: makeRng(seed),
+        client_warehouse_id: "wh-test"
       });
     expect(JSON.stringify(run(123))).toEqual(JSON.stringify(run(123)));
     expect(run(123)).not.toEqual(null);
@@ -152,7 +156,8 @@ describe("buildCreateOrderBody", () => {
         destination,
         policy,
         now,
-        rng: makeRng(seed)
+        rng: makeRng(seed),
+        client_warehouse_id: "wh-test"
       })
     );
     const stringified = new Set(bodies.map((b) => JSON.stringify(b)));
@@ -169,7 +174,8 @@ describe("buildCreateOrderBody", () => {
         destination,
         policy,
         now,
-        rng: makeRng(seed)
+        rng: makeRng(seed),
+        client_warehouse_id: "wh-test"
       });
       expect(body!.order_lines.length).toBeGreaterThanOrEqual(policy.min_produits_par_commande);
       expect(body!.order_lines.length).toBeLessThanOrEqual(policy.max_produits_par_commande);
@@ -185,7 +191,8 @@ describe("buildCreateOrderBody", () => {
         destination,
         policy,
         now,
-        rng: makeRng(seed)
+        rng: makeRng(seed),
+        client_warehouse_id: "wh-test"
       });
       const maxCartons = Math.floor(policy.quantite_cible_cartons * policy.facteur_quantite_max);
       const maxPalettes = Math.ceil(maxCartons / stock.cartons_par_palette);
@@ -203,7 +210,8 @@ describe("buildCreateOrderBody", () => {
         destination,
         policy,
         now,
-        rng: makeRng(seed)
+        rng: makeRng(seed),
+        client_warehouse_id: "wh-test"
       });
       const date = new Date(body!.delivery_need.requested_delivery_date + "T00:00:00Z");
       const diffJours = Math.round((date.getTime() - now.getTime()) / (24 * 3600 * 1000));
