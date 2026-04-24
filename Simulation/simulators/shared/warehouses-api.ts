@@ -146,3 +146,54 @@ export function patchStorageSlot(
 ): Promise<StorageSlotCreated> {
   return client.patch<StorageSlotCreated>(`/api/storage-slots/${slotId}`, payload);
 }
+
+export type DockStatus = "FREE" | "OCCUPIED" | "MAINTENANCE";
+
+export interface CreateLoadingDockBody {
+  code: string;
+  position_x: number;
+  position_y: number;
+  side: DockSide;
+  max_tonnage?: number;
+  max_width_meters?: number;
+  status?: DockStatus;
+}
+
+export interface LoadingDockCreated {
+  id: string;
+  client_warehouse_id: string;
+  code: string;
+  side: DockSide;
+  status: DockStatus;
+}
+
+export interface WarehouseExterior {
+  docks?: Array<{ id: string; code: string; status: DockStatus }>;
+  loading_docks?: Array<{ id: string; code: string; status: DockStatus }>;
+}
+
+export function createLoadingDock(
+  client: ApiClient,
+  warehouseId: string,
+  body: CreateLoadingDockBody
+): Promise<LoadingDockCreated> {
+  return client.post<LoadingDockCreated>(
+    `/api/client-warehouses/${warehouseId}/loading-docks`,
+    body
+  );
+}
+
+export async function listWarehouseDockCodes(
+  client: ApiClient,
+  warehouseId: string
+): Promise<Set<string>> {
+  try {
+    const exterior = await client.get<WarehouseExterior>(
+      `/api/client-warehouses/${warehouseId}/exterior`
+    );
+    const arr = exterior.docks ?? exterior.loading_docks ?? [];
+    return new Set(arr.map((d) => d.code));
+  } catch {
+    return new Set();
+  }
+}
