@@ -30,7 +30,7 @@ export interface DrivePlansCycleResult {
   pending: number;
 }
 
-function daysBetween(fromIsoDate: string, toIsoDate: string): number {
+export function daysBetween(fromIsoDate: string, toIsoDate: string): number {
   const from = new Date(`${fromIsoDate}T00:00:00.000Z`).getTime();
   const to = new Date(`${toIsoDate}T00:00:00.000Z`).getTime();
   const diffMs = to - from;
