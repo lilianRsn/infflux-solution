@@ -15,6 +15,7 @@ const ROLE_NAV: Record<string, NavLink[]> = {
   admin: [
     { href: '/admin/dashboard', label: 'Dashboard' },
     { href: '/admin/clients', label: 'Clients' },
+    { href: '/admin/flotte', label: 'Livraisons' },
   ],
   client: [
     { href: '/client/commande', label: 'Commander' },
