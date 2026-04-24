@@ -722,6 +722,16 @@ export async function getOccupancyMetrics(warehouseId: string, user: AuthUser) {
 
     const metrics = result.rows[0];
 
+    const reservedResult = await pool.query(
+        `
+        SELECT COALESCE(SUM(total_pallets), 0) AS reserved_pallets
+        FROM orders
+        WHERE destination_warehouse_id = $1
+          AND status IN ('pending', 'assigned')
+        `,
+        [warehouseId]
+    );
+
     const maxCapacityVolume = Number(metrics.max_capacity_volume ?? 0);
     const usedVolume = Number(metrics.used_volume ?? 0);
 
@@ -741,7 +751,8 @@ export async function getOccupancyMetrics(warehouseId: string, user: AuthUser) {
         max_capacity_volume: maxCapacityVolume,
         available_pallets: Number(metrics.available_pallets ?? 0),
         used_pallets: Number(metrics.used_pallets ?? 0),
-        max_capacity_pallets: Number(metrics.max_capacity_pallets ?? 0)
+        max_capacity_pallets: Number(metrics.max_capacity_pallets ?? 0),
+        reserved_pallets: Number(reservedResult.rows[0].reserved_pallets ?? 0)
     };
 }
 

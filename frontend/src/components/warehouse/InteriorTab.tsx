@@ -12,9 +12,10 @@ interface Props {
   readonly warehouse: ClientWarehouse
   readonly readonly: boolean
   readonly onSlotUpdate: (slot: StorageSlot) => void
+  readonly reservedPallets?: number
 }
 
-export default function InteriorTab({ warehouse, readonly, onSlotUpdate }: Props) {
+export default function InteriorTab({ warehouse, readonly, onSlotUpdate, reservedPallets = 0 }: Props) {
   const [selectedFloorId, setSelectedFloorId] = useState(warehouse.floors[0].id)
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null)
 
@@ -43,7 +44,7 @@ export default function InteriorTab({ warehouse, readonly, onSlotUpdate }: Props
         <OccupancyLegend />
       </div>
 
-      <OccupancyMetrics floor={floor} />
+      <OccupancyMetrics floor={floor} reservedPallets={reservedPallets} />
 
       <div className="flex gap-4">
         <div className="flex-1 bg-white rounded-xl border border-slate-200 overflow-hidden">

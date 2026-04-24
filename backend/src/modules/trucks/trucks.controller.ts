@@ -4,6 +4,7 @@ import {
   createTruck,
   deleteTruck,
   getTruckById,
+  listAvailableTrucks,
   listTrucks,
   updateTruck,
 } from "./trucks.service";
@@ -21,6 +22,15 @@ function handleError(error: unknown, res: Response): Response {
 export async function listTrucksHandler(_req: Request, res: Response): Promise<Response> {
   try {
     return res.json(await listTrucks());
+  } catch (error) {
+    return handleError(error, res);
+  }
+}
+
+export async function listAvailableTrucksHandler(req: Request, res: Response): Promise<Response> {
+  try {
+    const minPallets = req.query.min_pallets ? Number(req.query.min_pallets) : undefined;
+    return res.json(await listAvailableTrucks(minPallets));
   } catch (error) {
     return handleError(error, res);
   }

@@ -47,15 +47,19 @@ VALUES
    'MAINTENANCE', NULL, 0, NULL);
 
 -- ── 3. Entrepôts clients ─────────────────────────────────────
-INSERT INTO client_warehouses (id, client_id, name, address, floors_count)
+INSERT INTO client_warehouses (id, client_id, name, address, floors_count, logistics_hub_id)
 VALUES
   ('20000000-0000-0000-0000-000000000001',
    '00000000-0000-0000-0000-000000000002',
-   'Entrepôt Dupont Lyon', '45 rue de l''Industrie, 69800 Saint-Priest', 1),
+   'Entrepôt Dupont Lyon', '45 rue de l''Industrie, 69800 Saint-Priest', 1, 'HUB_LYON'),
 
   ('20000000-0000-0000-0000-000000000002',
    '00000000-0000-0000-0000-000000000003',
-   'Entrepôt Martin Grenoble', '22 avenue des Alpes, 38130 Échirolles', 1);
+   'Entrepôt Martin Grenoble', '22 avenue des Alpes, 38130 Échirolles', 1, NULL),
+
+  ('20000000-0000-0000-0000-000000000003',
+   '00000000-0000-0000-0000-000000000002',
+   'Entrepôt Dupont Vénissieux', '18 rue de la Chimie, 69200 Vénissieux', 1, 'HUB_LYON');
 
 -- ── 4. Étages ────────────────────────────────────────────────
 INSERT INTO warehouse_floors (id, client_warehouse_id, level, label)
@@ -63,7 +67,9 @@ VALUES
   ('30000000-0000-0000-0000-000000000001',
    '20000000-0000-0000-0000-000000000001', 0, 'Rez-de-chaussée'),
   ('30000000-0000-0000-0000-000000000002',
-   '20000000-0000-0000-0000-000000000002', 0, 'Rez-de-chaussée');
+   '20000000-0000-0000-0000-000000000002', 0, 'Rez-de-chaussée'),
+  ('30000000-0000-0000-0000-000000000003',
+   '20000000-0000-0000-0000-000000000003', 0, 'Rez-de-chaussée');
 
 -- ── 5. Allées ────────────────────────────────────────────────
 INSERT INTO warehouse_aisles (id, floor_id, code, position_x, position_y)
@@ -74,7 +80,10 @@ VALUES
 
   ('40000000-0000-0000-0000-000000000004', '30000000-0000-0000-0000-000000000002', 'B1', 10, 20),
   ('40000000-0000-0000-0000-000000000005', '30000000-0000-0000-0000-000000000002', 'B2', 10, 60),
-  ('40000000-0000-0000-0000-000000000006', '30000000-0000-0000-0000-000000000002', 'B3', 10, 100);
+  ('40000000-0000-0000-0000-000000000006', '30000000-0000-0000-0000-000000000002', 'B3', 10, 100),
+
+  ('40000000-0000-0000-0000-000000000007', '30000000-0000-0000-0000-000000000003', 'C1', 10, 20),
+  ('40000000-0000-0000-0000-000000000008', '30000000-0000-0000-0000-000000000003', 'C2', 10, 60);
 
 -- ── 6. Emplacements de stockage ──────────────────────────────
 INSERT INTO storage_slots (aisle_id, rank, side, total_volume, used_volume, total_pallets, used_pallets, status)
@@ -109,13 +118,20 @@ VALUES
   ('40000000-0000-0000-0000-000000000006', '1', 'L', 10.0,  0.0, 5, 0, 'FREE'),
   ('40000000-0000-0000-0000-000000000006', '1', 'R', 10.0,  0.0, 5, 0, 'FREE'),
   ('40000000-0000-0000-0000-000000000006', '2', 'L', 10.0,  0.0, 5, 0, 'FREE'),
-  ('40000000-0000-0000-0000-000000000006', '2', 'R', 10.0,  0.0, 5, 0, 'FREE');
+  ('40000000-0000-0000-0000-000000000006', '2', 'R', 10.0,  0.0, 5, 0, 'FREE'),
+
+  -- Dupont Vénissieux — C1/C2 (très disponible)
+  ('40000000-0000-0000-0000-000000000007', '1', 'L', 12.0,  2.0, 6, 1, 'PARTIAL'),
+  ('40000000-0000-0000-0000-000000000007', '1', 'R', 12.0,  0.0, 6, 0, 'FREE'),
+  ('40000000-0000-0000-0000-000000000008', '1', 'L', 12.0,  0.0, 6, 0, 'FREE'),
+  ('40000000-0000-0000-0000-000000000008', '1', 'R', 12.0,  0.0, 6, 0, 'FREE');
 
 -- ── 7. Extérieurs entrepôts ──────────────────────────────────
 INSERT INTO client_warehouse_exteriors (client_warehouse_id, site_width, site_height, building_x, building_y, building_width, building_height, access_direction)
 VALUES
   ('20000000-0000-0000-0000-000000000001', 200, 150, 40, 30, 120, 90, 'S'),
-  ('20000000-0000-0000-0000-000000000002', 180, 130, 30, 25, 110, 80, 'N');
+  ('20000000-0000-0000-0000-000000000002', 180, 130, 30, 25, 110, 80, 'N'),
+  ('20000000-0000-0000-0000-000000000003', 160, 120, 30, 25, 100, 70, 'E');
 
 -- ── 8. Docks de chargement ───────────────────────────────────
 INSERT INTO loading_docks (id, client_warehouse_id, code, position_x, position_y, side, max_tonnage, max_width_meters, status)
@@ -127,17 +143,22 @@ VALUES
 
   -- Martin Grenoble : 2 docks côté nord
   ('50000000-0000-0000-0000-000000000004', '20000000-0000-0000-0000-000000000002', 'D1', 50,  25,  'N', 19.0, 2.5, 'FREE'),
-  ('50000000-0000-0000-0000-000000000005', '20000000-0000-0000-0000-000000000002', 'D2', 100, 25,  'N', 19.0, 2.5, 'FREE');
+  ('50000000-0000-0000-0000-000000000005', '20000000-0000-0000-0000-000000000002', 'D2', 100, 25,  'N', 19.0, 2.5, 'FREE'),
+
+  -- Dupont Vénissieux : 2 docks côté est
+  ('50000000-0000-0000-0000-000000000006', '20000000-0000-0000-0000-000000000003', 'E1', 130, 60, 'E', 26.0, 2.6, 'FREE'),
+  ('50000000-0000-0000-0000-000000000007', '20000000-0000-0000-0000-000000000003', 'E2', 130, 90, 'E', 19.0, 2.5, 'FREE');
 
 -- ── 9. Zones de parking ──────────────────────────────────────
 INSERT INTO parking_zones (client_warehouse_id, position_x, position_y, width, height, capacity)
 VALUES
   ('20000000-0000-0000-0000-000000000001', 10, 90, 25, 30, 8),
-  ('20000000-0000-0000-0000-000000000002', 10, 70, 20, 25, 6);
+  ('20000000-0000-0000-0000-000000000002', 10, 70, 20, 25, 6),
+  ('20000000-0000-0000-0000-000000000003', 10, 50, 20, 30, 6);
 
 -- ── 10. Commandes de démo ────────────────────────────────────
 INSERT INTO orders (
-  id, order_number, customer_id, client_warehouse_id,
+  id, order_number, customer_id, client_warehouse_id, destination_warehouse_id,
   company_name, billing_address, main_contact_name, main_contact_phone, main_contact_email,
   delivery_address, site_name,
   requested_delivery_date, delivery_time_window, urgency_level,
@@ -153,6 +174,7 @@ VALUES
    'ORD-2026-001',
    '00000000-0000-0000-0000-000000000002',
    '20000000-0000-0000-0000-000000000001',
+   '20000000-0000-0000-0000-000000000001',
    'Dupont SAS', '12 rue de la Paix, 69001 Lyon', 'Jean Dupont', '06 12 34 56 78', 'client@demo.com',
    '45 rue de l''Industrie, 69800 Saint-Priest', 'Entrepôt Dupont Lyon',
    '2026-04-25', 'morning', 'urgent',
@@ -165,6 +187,7 @@ VALUES
    'ORD-2026-002',
    '00000000-0000-0000-0000-000000000002',
    '20000000-0000-0000-0000-000000000001',
+   '20000000-0000-0000-0000-000000000001',
    'Dupont SAS', '12 rue de la Paix, 69001 Lyon', 'Jean Dupont', '06 12 34 56 78', 'client@demo.com',
    '45 rue de l''Industrie, 69800 Saint-Priest', 'Entrepôt Dupont Lyon',
    '2026-04-28', 'afternoon', 'standard',
@@ -176,6 +199,7 @@ VALUES
   ('60000000-0000-0000-0000-000000000003',
    'ORD-2026-003',
    '00000000-0000-0000-0000-000000000003',
+   '20000000-0000-0000-0000-000000000002',
    '20000000-0000-0000-0000-000000000002',
    'Martin Logistics', '8 avenue du Commerce, 38000 Grenoble', 'Sophie Martin', '07 98 76 54 32', 'client2@demo.com',
    '22 avenue des Alpes, 38130 Échirolles', 'Entrepôt Martin Grenoble',
