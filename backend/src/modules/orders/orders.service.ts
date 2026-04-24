@@ -144,7 +144,6 @@ export async function createOrder(body: CreateOrderBody, user: AuthUser) {
         order_number,
         customer_id,
         client_warehouse_id,
-        destination_warehouse_id,
         company_name,
         billing_address,
         main_contact_name,
@@ -178,9 +177,9 @@ export async function createOrder(body: CreateOrderBody, user: AuthUser) {
         service_level
       )
       VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,
-        $13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,
-        'pending','UNPLANNED',$25,$26,$27,$28,$29,$30,$31,$32,$33
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,
+        $12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,
+        'pending','UNPLANNED',$24,$25,$26,$27,$28,$29,$30,$31,$32
       )
       RETURNING *
       `,
@@ -188,7 +187,6 @@ export async function createOrder(body: CreateOrderBody, user: AuthUser) {
         orderNumber,
         customerId,
         clientWarehouse.id,
-        destination_warehouse_id || null,
         customer.company_name,
         customer.billing_address || null,
         customer.main_contact_name || null,
