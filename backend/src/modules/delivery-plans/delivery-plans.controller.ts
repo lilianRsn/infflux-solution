@@ -4,9 +4,14 @@ import {
   generateDeliveryPlans,
   getDeliveryPlanById,
   listDeliveryPlans,
-  updateDeliveryPlanStatus
+  reprogramOrder,
+  updateDeliveryPlanStatus,
+  validateDeliveryPlan
 } from "./delivery-plans.service";
-import { UpdateDeliveryPlanStatusBody } from "./delivery-plans.types";
+import {
+  ReprogramOrderBody,
+  UpdateDeliveryPlanStatusBody
+} from "./delivery-plans.types";
 
 export async function generateDeliveryPlansHandler(
   _req: Request,
@@ -16,7 +21,6 @@ export async function generateDeliveryPlansHandler(
     const result = await generateDeliveryPlans();
     return res.status(201).json(result);
   } catch (error) {
-    console.error("[generate] ERROR:", error);
     if (error instanceof AppError) {
       return res.status(error.statusCode).json({ message: error.message });
     }
@@ -64,6 +68,42 @@ export async function updateDeliveryPlanStatusHandler(
 ): Promise<Response> {
   try {
     const result = await updateDeliveryPlanStatus(req.params.id, req.body.status);
+    return res.json(result);
+  } catch (error) {
+    if (error instanceof AppError) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
+
+    return res.status(500).json({
+      message: error instanceof Error ? error.message : "Internal server error"
+    });
+  }
+}
+
+export async function validateDeliveryPlanHandler(
+  req: Request<{ id: string }>,
+  res: Response
+): Promise<Response> {
+  try {
+    const result = await validateDeliveryPlan(req.params.id);
+    return res.json(result);
+  } catch (error) {
+    if (error instanceof AppError) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
+
+    return res.status(500).json({
+      message: error instanceof Error ? error.message : "Internal server error"
+    });
+  }
+}
+
+export async function reprogramOrderHandler(
+  req: Request<{ orderId: string }, {}, ReprogramOrderBody>,
+  res: Response
+): Promise<Response> {
+  try {
+    const result = await reprogramOrder(req.params.orderId, req.body);
     return res.json(result);
   } catch (error) {
     if (error instanceof AppError) {
