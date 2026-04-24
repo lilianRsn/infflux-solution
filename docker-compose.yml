@@ -53,6 +53,24 @@ services:
       MERCHANT_CONTACT_PHONE: "0600000000"
     restart: always
 
+  fleet-sim:
+    build:
+      context: ./Simulation/simulators
+      dockerfile: Dockerfile
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      BACKEND_URL: http://api:3001
+      FLEET_EMAIL: admin-fleet@example.com
+      FLEET_PASSWORD: Pass1234!
+      FLEET_COMPANY_NAME: Infflux Fleet
+      FLEET_TRUCKS_MIN: "3"
+      FLEET_TRUCKS_MAX: "8"
+      FLEET_MINUTE_PAR_JOUR_MS: "60000"
+    command: ["npx", "tsx", "fleet/index.ts"]
+    restart: always
+
   frontend:
     build:
       context: ./frontend
