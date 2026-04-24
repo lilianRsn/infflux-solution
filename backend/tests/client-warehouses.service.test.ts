@@ -50,8 +50,9 @@ describe("client warehouses service", () => {
 
     expect(mockQuery).toHaveBeenCalledWith(
       expect.stringContaining("INSERT INTO client_warehouses"),
-      ["client-1", "Entrepot Lyon", "25 avenue Livraison, Lyon", 2]
+      ["client-1", "Entrepot Lyon", "25 avenue Livraison, Lyon", 2, null]
     );
+
     expect(result.name).toBe("Entrepot Lyon");
   });
 

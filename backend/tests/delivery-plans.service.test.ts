@@ -6,7 +6,9 @@ import {
   generateDeliveryPlans,
   getDeliveryPlanById,
   listDeliveryPlans,
-  updateDeliveryPlanStatus
+  reprogramOrder,
+  updateDeliveryPlanStatus,
+  validateDeliveryPlan
 } from "../src/modules/delivery-plans/delivery-plans.service";
 
 jest.mock("../src/infrastructure/database/db", () => ({
@@ -31,72 +33,87 @@ describe("delivery plans service", () => {
     mockConnect.mockResolvedValue(mockClient);
   });
 
-  it("generates a delivery plan for a plannable order", async () => {
+  it("generates a delivery plan with assigned truck and dock", async () => {
     mockClient.query
-      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
       .mockResolvedValueOnce({
         rows: [
           {
             id: "order-1",
             order_number: "ORD-1",
             client_warehouse_id: "warehouse-1",
-            requested_delivery_date: "2026-04-24",
+            requested_delivery_date: new Date("2026-04-24T00:00:00.000Z"),
+            delivery_time_window: "morning",
             urgency_level: "urgent",
             total_pallets: 6,
+            split_delivery_allowed: false,
             created_at: "2026-04-23T10:00:00.000Z"
           }
         ]
-      })
-      .mockResolvedValueOnce({
-        rows: [
-          {
-            id: "truck-1",
-            code: "TRUCK-1",
-            max_pallets: 10,
-            max_volume_m3: 0,
-            max_weight_kg: 0,
-            status: "AVAILABLE"
-          }
-        ]
-      })
+      }) // load orders
       .mockResolvedValueOnce({
         rows: [
           {
             max_capacity_pallets: "20",
-            used_pallets: "5",
-            usable_docks: "2"
+            used_pallets: "5"
           }
         ]
-      })
+      }) // capacity
       .mockResolvedValueOnce({
         rows: [
           {
             reserved_pallets: "0"
           }
         ]
-      })
+      }) // reserved
       .mockResolvedValueOnce({
         rows: [
           {
-            id: "plan-1"
+            id: "dock-1",
+            code: "D1",
+            side: "N",
+            position_x: 5,
+            position_y: 10,
+            status: "FREE"
           }
         ]
-      })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] });
+      }) // available docks
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "truck-1",
+            name: "Truck Alpha",
+            license_plate: "AA-123-AA",
+            max_palettes: 12,
+            max_volume_m3: 45,
+            max_weight_kg: 18000,
+            status: "AVAILABLE"
+          }
+        ]
+      }) // available trucks
+      .mockResolvedValueOnce({
+        rows: [{ id: "plan-1" }]
+      }) // insert delivery plan
+      .mockResolvedValueOnce({ rows: [] }) // insert delivery_plan_orders
+      .mockResolvedValueOnce({ rows: [] }) // insert delivery_plan_trucks
+      .mockResolvedValueOnce({ rows: [] }) // insert delivery_plan_docks
+      .mockResolvedValueOnce({ rows: [] }) // update order
+      .mockResolvedValueOnce({ rows: [] }); // COMMIT
 
     const result = await generateDeliveryPlans();
 
     expect(result.generated_count).toBe(1);
     expect(result.blocked_count).toBe(0);
+    expect(result.partially_planned_count).toBe(0);
     expect(result.generated_plans[0]).toMatchObject({
       delivery_plan_id: "plan-1",
       order_id: "order-1",
       order_number: "ORD-1",
+      allocated_pallets: 6,
+      trucks: ["Truck Alpha"],
+      assigned_docks: ["D1"],
       planned_delivery_date: "2026-04-24",
-      trucks: ["TRUCK-1"]
+      planned_time_window: "morning"
     });
 
     expect(mockClient.query).toHaveBeenCalledWith("BEGIN");
@@ -104,9 +121,9 @@ describe("delivery plans service", () => {
     expect(mockClient.release).toHaveBeenCalled();
   });
 
-  it("blocks an order when client storage is insufficient", async () => {
+  it("blocks an order when no dock is available", async () => {
     mockClient.query
-      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
       .mockResolvedValueOnce({
         rows: [
           {
@@ -114,41 +131,30 @@ describe("delivery plans service", () => {
             order_number: "ORD-1",
             client_warehouse_id: "warehouse-1",
             requested_delivery_date: "2026-04-24",
+            delivery_time_window: "morning",
             urgency_level: "standard",
-            total_pallets: 12,
+            total_pallets: 8,
+            split_delivery_allowed: false,
             created_at: "2026-04-23T10:00:00.000Z"
           }
         ]
-      })
+      }) // load orders
       .mockResolvedValueOnce({
         rows: [
           {
-            id: "truck-1",
-            code: "TRUCK-1",
-            max_pallets: 20,
-            max_volume_m3: 0,
-            max_weight_kg: 0,
-            status: "AVAILABLE"
+            max_capacity_pallets: "30",
+            used_pallets: "4"
           }
         ]
-      })
+      }) // capacity
       .mockResolvedValueOnce({
-        rows: [
-          {
-            max_capacity_pallets: "10",
-            used_pallets: "4",
-            usable_docks: "2"
-          }
-        ]
-      })
+        rows: [{ reserved_pallets: "0" }]
+      }) // reserved
       .mockResolvedValueOnce({
-        rows: [
-          {
-            reserved_pallets: "0"
-          }
-        ]
-      })
-      .mockResolvedValueOnce({ rows: [] });
+        rows: []
+      }) // no docks
+      .mockResolvedValueOnce({ rows: [] }) // update blocked order
+      .mockResolvedValueOnce({ rows: [] }); // COMMIT
 
     const result = await generateDeliveryPlans();
 
@@ -157,71 +163,8 @@ describe("delivery plans service", () => {
     expect(result.blocked_orders[0]).toMatchObject({
       order_id: "order-1",
       order_number: "ORD-1",
-      blocked_reason: "INSUFFICIENT_CLIENT_STORAGE"
+      blocked_reason: "INSUFFICIENT_DOCK_CAPACITY"
     });
-
-    expect(mockClient.query).toHaveBeenCalledWith("COMMIT");
-  });
-
-  it("blocks an order when dock capacity is insufficient for the needed trucks", async () => {
-    mockClient.query
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({
-        rows: [
-          {
-            id: "order-1",
-            order_number: "ORD-1",
-            client_warehouse_id: "warehouse-1",
-            requested_delivery_date: "2026-04-24",
-            urgency_level: "standard",
-            total_pallets: 12,
-            created_at: "2026-04-23T10:00:00.000Z"
-          }
-        ]
-      })
-      .mockResolvedValueOnce({
-        rows: [
-          {
-            id: "truck-1",
-            code: "TRUCK-1",
-            max_pallets: 7,
-            max_volume_m3: 0,
-            max_weight_kg: 0,
-            status: "AVAILABLE"
-          },
-          {
-            id: "truck-2",
-            code: "TRUCK-2",
-            max_pallets: 7,
-            max_volume_m3: 0,
-            max_weight_kg: 0,
-            status: "AVAILABLE"
-          }
-        ]
-      })
-      .mockResolvedValueOnce({
-        rows: [
-          {
-            max_capacity_pallets: "40",
-            used_pallets: "5",
-            usable_docks: "1"
-          }
-        ]
-      })
-      .mockResolvedValueOnce({
-        rows: [
-          {
-            reserved_pallets: "0"
-          }
-        ]
-      })
-      .mockResolvedValueOnce({ rows: [] });
-
-    const result = await generateDeliveryPlans();
-
-    expect(result.generated_count).toBe(0);
-    expect(result.blocked_count).toBe(1);
-    expect(result.blocked_orders[0].blocked_reason).toBe("INSUFFICIENT_DOCK_CAPACITY");
   });
 
   it("returns delivery plans list", async () => {
@@ -230,8 +173,10 @@ describe("delivery plans service", () => {
         {
           id: "plan-1",
           client_warehouse_name: "Warehouse A",
+          planned_time_window: "morning",
           orders_count: "1",
-          trucks_count: "1"
+          trucks_count: "1",
+          docks_count: "1"
         }
       ]
     });
@@ -241,15 +186,16 @@ describe("delivery plans service", () => {
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("plan-1");
     expect(result[0].client_warehouse_name).toBe("Warehouse A");
+    expect(result[0].docks_count).toBe("1");
   });
 
-  it("returns a delivery plan with its orders and trucks", async () => {
+  it("returns a delivery plan with orders, trucks and dock assignments", async () => {
     mockPoolQuery
       .mockResolvedValueOnce({
         rows: [
           {
             id: "plan-1",
-            client_warehouse_name: 'Warehouse A',
+            client_warehouse_name: "Warehouse A",
             client_warehouse_address: "25 avenue Livraison, Lyon"
           }
         ]
@@ -258,7 +204,8 @@ describe("delivery plans service", () => {
         rows: [
           {
             id: "order-1",
-            order_number: "ORD-1"
+            order_number: "ORD-1",
+            allocated_pallets: 6
           }
         ]
       })
@@ -266,8 +213,18 @@ describe("delivery plans service", () => {
         rows: [
           {
             id: "truck-1",
-            code: "TRUCK-1",
+            name: "Truck Alpha",
             assigned_pallets: 6
+          }
+        ]
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "dock-1",
+            code: "D1",
+            truck_id: "truck-1",
+            truck_code: "Truck Alpha"
           }
         ]
       });
@@ -277,7 +234,8 @@ describe("delivery plans service", () => {
     expect(result.id).toBe("plan-1");
     expect(result.orders).toHaveLength(1);
     expect(result.trucks).toHaveLength(1);
-    expect(result.trucks[0].code).toBe("TRUCK-1");
+    expect(result.dock_assignments).toHaveLength(1);
+    expect(result.dock_assignments[0].code).toBe("D1");
   });
 
   it("throws when delivery plan is not found", async () => {
@@ -286,50 +244,138 @@ describe("delivery plans service", () => {
     await expect(getDeliveryPlanById("missing-plan")).rejects.toBeInstanceOf(AppError);
   });
 
-  it("marks a delivery plan as completed and releases trucks", async () => {
+  it("validates a delivery plan by setting it to CONFIRMED", async () => {
     mockClient.query
-      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
       .mockResolvedValueOnce({
-        rows: [
-          {
-            id: "plan-1",
-            status: "DRAFT"
-          }
-        ]
-      })
+        rows: [{ id: "plan-1", status: "DRAFT" }]
+      }) // existing
       .mockResolvedValueOnce({
-        rows: [
-          {
-            id: "plan-1",
-            status: "COMPLETED"
-          }
-        ]
-      })
+        rows: [{ id: "plan-1", status: "CONFIRMED" }]
+      }) // update
       .mockResolvedValueOnce({
-        rows: [
-          { truck_id: "truck-1" },
-          { truck_id: "truck-2" }
-        ]
-      })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] });
+        rows: [{ truck_id: "truck-1" }]
+      }) // truck assignments
+      .mockResolvedValueOnce({
+        rows: [{ loading_dock_id: "dock-1" }]
+      }) // dock assignments
+      .mockResolvedValueOnce({
+        rows: [{ order_id: "order-1" }]
+      }) // order assignments
+      .mockResolvedValueOnce({ rows: [] }); // COMMIT
 
-    const result = await updateDeliveryPlanStatus("plan-1", "COMPLETED");
+    const result = await validateDeliveryPlan("plan-1");
 
-    expect(result.status).toBe("COMPLETED");
+    expect(result.status).toBe("CONFIRMED");
     expect(mockClient.query).toHaveBeenCalledWith("COMMIT");
-    expect(mockClient.release).toHaveBeenCalled();
   });
 
-  it("throws when updating a missing delivery plan", async () => {
+  it("moves a delivery plan to IN_PROGRESS and updates trucks, docks and order status", async () => {
     mockClient.query
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] });
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({
+        rows: [{ id: "plan-1", status: "CONFIRMED" }]
+      }) // existing
+      .mockResolvedValueOnce({
+        rows: [{ id: "plan-1", status: "IN_PROGRESS" }]
+      }) // update
+      .mockResolvedValueOnce({
+        rows: [{ truck_id: "truck-1" }]
+      }) // truck assignments
+      .mockResolvedValueOnce({
+        rows: [{ loading_dock_id: "dock-1" }]
+      }) // dock assignments
+      .mockResolvedValueOnce({
+        rows: [{ order_id: "order-1" }]
+      }) // order assignments
+      .mockResolvedValueOnce({ rows: [] }) // update truck
+      .mockResolvedValueOnce({ rows: [] }) // update dock
+      .mockResolvedValueOnce({ rows: [] }) // update order status in_progress
+      .mockResolvedValueOnce({ rows: [] }); // COMMIT
+
+    const result = await updateDeliveryPlanStatus("plan-1", "IN_PROGRESS");
+
+    expect(result.status).toBe("IN_PROGRESS");
+    expect(mockClient.query).toHaveBeenCalledWith("COMMIT");
+  });
+
+  it("reprograms an order without auto replanning", async () => {
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "order-1",
+            requested_delivery_date: new Date("2026-04-24T00:00:00.000Z"),
+            delivery_time_window: "morning",
+            urgency_level: "standard"
+          }
+        ]
+      }) // select order
+      .mockResolvedValueOnce({ rows: [] }) // cleanup select linked plans
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "order-1",
+            requested_delivery_date: "2026-04-28",
+            delivery_time_window: "afternoon",
+            urgency_level: "urgent",
+            planning_status: "UNPLANNED"
+          }
+        ]
+      }) // update order
+      .mockResolvedValueOnce({ rows: [] }); // COMMIT
+
+    const result = await reprogramOrder("order-1", {
+      requested_delivery_date: "2026-04-28",
+      delivery_time_window: "afternoon",
+      urgency_level: "urgent",
+      auto_replan: false
+    });
+
+    expect(result).toMatchObject({
+      message: "Order updated and marked as UNPLANNED",
+      order: {
+        id: "order-1",
+        requested_delivery_date: "2026-04-28",
+        delivery_time_window: "afternoon",
+        urgency_level: "urgent",
+        planning_status: "UNPLANNED"
+      }
+    });
+
+    expect(mockClient.query).toHaveBeenCalledWith("COMMIT");
+  });
+
+  it("rejects reprogramming when the order is linked to a grouped delivery plan", async () => {
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "order-1",
+            requested_delivery_date: "2026-04-24",
+            delivery_time_window: "morning",
+            urgency_level: "standard"
+          }
+        ]
+      }) // select order
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "plan-1",
+            status: "DRAFT",
+            orders_count: "2"
+          }
+        ]
+      }) // cleanup linked plans -> grouped
+      .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
 
     await expect(
-      updateDeliveryPlanStatus("missing-plan", "CONFIRMED")
+      reprogramOrder("order-1", {
+        requested_delivery_date: "2026-04-28",
+        auto_replan: false
+      })
     ).rejects.toBeInstanceOf(AppError);
 
     expect(mockClient.query).toHaveBeenCalledWith("ROLLBACK");

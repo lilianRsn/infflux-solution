@@ -35,6 +35,13 @@ describe("client warehouses occupancy metrics service", () => {
             available_pallets: "24"
           }
         ]
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            reserved_pallets: "6"
+          }
+        ]
       });
 
     const result = await getOccupancyMetrics("warehouse-1", {
@@ -47,5 +54,6 @@ describe("client warehouses occupancy metrics service", () => {
     expect(result.free_slots).toBe(3);
     expect(result.available_volume).toBe(60);
     expect(result.max_capacity_pallets).toBe(48);
+    expect(result.reserved_pallets).toBe(6);
   });
 });
