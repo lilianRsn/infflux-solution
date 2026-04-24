@@ -597,66 +597,151 @@ Palettes Tailwind natives : `slate` (base) et `blue` (accent). Rien à configure
 
 ---
 
-## Module flotte (à implémenter)
+## Module flotte (implémenté)
 
 ### Contexte
 
-La page de détail d'une commande (`/admin/commandes/[id]`) contient déjà un bloc placeholder "Attribution d'un transporteur" en attente de ce module. Dès que la flotte est disponible, ce bloc doit être remplacé par une vraie section d'attribution.
+La table `trucks` est définie dans `backend/db/schema.sql` et seedée dans `backend/db/seed.sql`. Le module expose des camions avec capacité en palettes et un statut (`AVAILABLE`, `ON_ROUTE`, `MAINTENANCE`).
 
-### Modèle de données attendu
+### Modèle de données
 
 ```sql
-CREATE TABLE vehicles (
+CREATE TABLE trucks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
   plate TEXT NOT NULL UNIQUE,
-  label TEXT,
-  capacity_pallets INTEGER NOT NULL,     -- capacité max en palettes
-  status TEXT NOT NULL DEFAULT 'available'
-    CHECK (status IN ('available', 'on_route', 'maintenance')),
-  current_location TEXT,                 -- adresse ou coordonnées
+  max_palettes INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'AVAILABLE' CHECK (status IN ('AVAILABLE', 'ON_ROUTE', 'MAINTENANCE')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ```
 
-### Endpoints attendus
+### Endpoints implémentés
 
 ```
-GET  /api/fleet/vehicles                          → liste tous les véhicules (admin)
-GET  /api/fleet/vehicles/available?pallets=N      → camions avec capacity_pallets >= N et status = available
-POST /api/orders/:id/assign                       → body: { vehicle_id }
-                                                    - vérifie capacity_pallets >= order.total_pallets
-                                                    - passe order.status à 'assigned'
-                                                    - passe vehicle.status à 'on_route'
+GET  /api/trucks                        → liste tous les camions (admin)
+GET  /api/trucks/available?min_pallets=N → camions AVAILABLE avec max_palettes >= N
+GET  /api/trucks/:id                    → détail d'un camion
 ```
 
-### Intégration dans la page de détail commande
+> **Important** : la route `GET /available` doit être enregistrée **avant** `GET /:id` dans le routeur Express, sinon `available` est capturé comme un paramètre id.
 
-Fichier : `src/components/orders/OrderDetail.tsx`
+### Proxy frontend
 
-Localiser le bloc avec le commentaire `/* Section admin : attribution transporteur */`. Il affiche actuellement un banner amber "En attente du module flotte". Le remplacer par :
+- `frontend/src/app/api/trucks/available/route.ts` → `GET /api/trucks/available` (transfère les query params)
 
-1. **Fetch des véhicules disponibles** dans la page server (`/admin/commandes/[id]/page.tsx`) :
-   ```typescript
-   const vehicles = await fetchBackend<any[]>(`/api/fleet/vehicles/available?pallets=${order.total_pallets}`)
-   ```
+---
 
-2. **Passer `vehicles` en prop** à `OrderDetail` (ajouter `vehicles?: any[]` dans l'interface `Props`)
+## Commandes entrantes et affectation camion par entrepôt
 
-3. **Remplacer le banner** par une liste de cards véhicules :
-   - Chaque card : plaque, capacité, statut, bouton "Attribuer"
-   - Le bouton appelle une server action `assignVehicle(orderId, vehicleId)` → `POST /api/orders/:id/assign`
-   - Après attribution réussie : `router.refresh()` pour recharger la page avec le nouveau statut
+### Contexte
 
-4. **Si `vehicles` est vide** : afficher "Aucun véhicule disponible avec la capacité requise ({N} palettes)" avec un badge rouge.
+Chaque page d'entrepôt client (`/client/warehouses/[id]`) affiche la liste des commandes dont l'entrepôt est la destination. L'admin peut depuis cette vue assigner un camion disponible à une commande en attente, avec option de reroutage vers un entrepôt du même hub logistique.
 
-5. **Si `order.status !== 'pending'`** : afficher le véhicule assigné (une fois que le champ `vehicle_id` / `carrier_label` est renvoyé par l'API) à la place de la liste de sélection.
+### Modèle de données — extensions
 
-### Checklist d'intégration
+Colonnes ajoutées à la table `orders` :
 
-- [ ] Table `vehicles` créée et seedée (3-5 camions avec capacités variées)
-- [ ] Endpoint `GET /api/fleet/vehicles/available?pallets=N` implémenté
-- [ ] Endpoint `POST /api/orders/:id/assign` implémenté avec vérification de capacité
-- [ ] Server action `assignVehicle` dans `src/app/actions/orders.ts`
-- [ ] `OrderDetail.tsx` mis à jour : suppression du banner placeholder, ajout de la liste de véhicules
-- [ ] Champ `carrier_label` ou `vehicle_plate` ajouté à la réponse de `GET /api/orders/:id` pour afficher le transporteur une fois assigné
+```sql
+assigned_truck_id    UUID          -- FK vers trucks.id (ON DELETE SET NULL, ajoutée en fin de schema après la table trucks)
+assigned_at          TIMESTAMPTZ
+destination_warehouse_id UUID REFERENCES client_warehouses(id) ON DELETE SET NULL
+```
+
+Colonne ajoutée à `client_warehouses` :
+
+```sql
+logistics_hub_id TEXT  -- identifiant de zone, ex: 'HUB_LYON' — regroupe les entrepôts d'un même client pour le reroutage
+```
+
+> La FK `orders.assigned_truck_id → trucks.id` est déclarée sans contrainte dans le `CREATE TABLE orders`, puis ajoutée via `ALTER TABLE` en fin de fichier pour éviter la référence circulaire (orders avant trucks dans schema.sql).
+
+### Seed
+
+Le seed configure au moins deux entrepôts Dupont partageant `logistics_hub_id = 'HUB_LYON'` : "Entrepôt Dupont Lyon" et "Entrepôt Dupont Vénissieux". Cela permet de démontrer le reroutage intra-hub.
+
+### Endpoints backend
+
+```
+GET  /api/orders/warehouse/:warehouseId   → commandes dont destination_warehouse_id = warehouseId
+                                            (LEFT JOIN trucks pour truck_name, truck_plate)
+                                            — enregistré AVANT GET /api/orders/:id
+POST /api/orders/:id/assign               → body: { truck_id, destination_warehouse_id? }
+                                            - vérifie max_palettes >= total_pallets
+                                            - status → 'assigned', planning_status → 'PLANNED'
+                                            - set assigned_truck_id, assigned_at
+                                            - si destination_warehouse_id fourni : reroutage hub
+GET  /api/client-warehouses/:id/hub-alternatives  → entrepôts du même logistics_hub_id
+                                                    avec occupancy_rate et free_docks
+GET  /api/client-warehouses/:id/occupancy-metrics → métriques d'occupation + reserved_pallets
+```
+
+### Composants frontend
+
+| Composant | Fichier | Rôle |
+|---|---|---|
+| `WarehouseOrders` | `components/warehouse/WarehouseOrders.tsx` | Liste les commandes entrantes, bannières métriques, bouton d'assignation (admin uniquement sur commandes `pending`) |
+| `AssignTruckModal` | `components/warehouse/AssignTruckModal.tsx` | Modale d'affectation : sélecteur camion filtré par capacité, sélecteur entrepôt hub alternatif, barre de remplissage prévisionnelle |
+
+### Proxy frontend
+
+- `app/api/orders/warehouse/[warehouseId]/route.ts` → `GET /api/orders/warehouse/${warehouseId}`
+- `app/api/orders/[id]/assign/route.ts` → `POST /api/orders/${id}/assign`
+- `app/api/client-warehouses/[id]/hub-alternatives/route.ts` → `GET /api/client-warehouses/${id}/hub-alternatives`
+- `app/api/client-warehouses/[id]/occupancy-metrics/route.ts` → `GET /api/client-warehouses/${id}/occupancy-metrics`
+
+### Intégration page entrepôt
+
+`frontend/src/app/client/warehouses/[id]/page.tsx` inclut `<WarehouseOrders warehouseId={id} userRole={...} />` sous le `WarehouseViewer`.
+
+---
+
+## Capacité projetée (palettes à venir)
+
+### Contexte
+
+Le bandeau de métriques de la vue intérieure d'un entrepôt affiche non seulement la capacité actuelle, mais aussi la capacité disponible **après** les livraisons attendues. Cela permet d'anticiper une saturation.
+
+### Calcul
+
+```
+reserved_pallets = SUM(total_pallets) FROM orders
+                   WHERE destination_warehouse_id = :id
+                     AND status IN ('pending', 'assigned')
+
+future_available = available_pallets − reserved_pallets
+```
+
+### Flux de données
+
+1. `WarehouseLayout` fetch `/api/client-warehouses/:id/occupancy-metrics` au montage
+2. Passe `reservedPallets` → `InteriorTab` → `OccupancyMetrics`
+3. `OccupancyMetrics` affiche dans la carte "Palettes disponibles" :
+   - Valeur actuelle en gros
+   - Séparateur + ligne "Après livraisons entrantes : X pal." (rouge si ≤ 5) si `reservedPallets > 0`
+
+### Fichiers impactés
+
+- `backend/src/modules/client-warehouses/client-warehouses.service.ts` — `getOccupancyMetrics` retourne `reserved_pallets`
+- `frontend/src/components/warehouse/WarehouseLayout.tsx` — fetch des métriques + state `reservedPallets`
+- `frontend/src/components/warehouse/InteriorTab.tsx` — prop `reservedPallets` transmise vers le bas
+- `frontend/src/components/warehouse/interior/OccupancyMetrics.tsx` — affichage conditionnel de la projection
+
+---
+
+## Plans de livraison — proxy routes
+
+Les composants de plans de livraison (`DeliveryPlanningContent`) appellent :
+
+```
+GET  /api/delivery-plans/:id           → détail du plan
+POST /api/delivery-plans/:id/validate  → validation du plan
+```
+
+### Proxy frontend
+
+- `frontend/src/app/api/delivery-plans/[id]/route.ts` — expose `GET` (plan detail) **et** `POST` (redirigé vers `/validate` pour compatibilité historique)
+- `frontend/src/app/api/delivery-plans/[id]/validate/route.ts` — expose `POST` vers `POST /api/delivery-plans/:id/validate`
+
+> Les deux fichiers coexistent : `/[id]/route.ts` pour le GET et le POST legacy, `/[id]/validate/route.ts` pour le POST validate explicite appelé par les nouveaux composants.
 
