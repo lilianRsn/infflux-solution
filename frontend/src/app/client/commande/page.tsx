@@ -1,11 +1,19 @@
 import { redirect } from 'next/navigation'
 import { getSessionUser } from '@/lib/server-auth'
+import { fetchBackend } from '@/lib/api'
 import Navbar from '@/components/layout/Navbar'
 import ClientOrderForm from '@/components/orders/ClientOrderForm'
 
 export default async function ClientCommande() {
   const user = await getSessionUser()
   if (!user) redirect('/login')
+
+  let warehouses: any[] = []
+  try {
+    warehouses = await fetchBackend<any[]>(`/api/client-warehouses/${user.id}`)
+  } catch {
+    // non-blocking
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -24,7 +32,7 @@ export default async function ClientCommande() {
           </p>
         </div>
 
-        <ClientOrderForm />
+        <ClientOrderForm warehouses={warehouses} />
       </div>
     </div>
   )

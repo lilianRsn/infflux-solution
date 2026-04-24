@@ -7,8 +7,8 @@ export default function OccupancyMetrics({ floor }: { floor: WarehouseFloor }) {
     <div className="grid grid-cols-4 gap-3">
       <Card label="Taux d'occupation" value={`${s.occupancyRate}%`} />
       <Card label="Emplacements libres" value={`${s.free} / ${s.total}`} />
-      <Card label="Volume disponible" value={`${s.totalVolume - s.usedVolume} m³`} />
-      <Card label="Capacité totale" value={`${s.totalVolume} m³`} />
+      <Card label="Palettes disponibles" value={`${s.totalVolume - s.usedVolume}`} />
+      <Card label="Capacité totale" value={`${s.totalVolume} pal.`} />
     </div>
   )
 }

@@ -92,11 +92,11 @@ export async function createWarehouse(body: CreateWarehouseBody, user: AuthUser)
 
     const r = await pool.query(
         `
-    INSERT INTO client_warehouses (client_id, name, address, floors_count)
-    VALUES ($1, $2, $3, $4)
+    INSERT INTO client_warehouses (client_id, name, address, floors_count, logistics_hub_id)
+    VALUES ($1, $2, $3, $4, $5)
     RETURNING *
     `,
-        [clientId, body.name, body.address, body.floors_count ?? 1]
+        [clientId, body.name, body.address, body.floors_count ?? 1, body.logistics_hub_id ?? null]
     );
 
     return r.rows[0];
@@ -122,6 +122,7 @@ export async function updateWarehouse(
     const name = body.name ?? current.name;
     const address = body.address ?? current.address;
     const floorsCount = body.floors_count ?? current.floors_count;
+    const logisticsHubId = body.logistics_hub_id !== undefined ? body.logistics_hub_id : current.logistics_hub_id;
 
     if (!name || !address || floorsCount <= 0) {
         throw new AppError("name, address and floors_count must be valid", 400);
@@ -134,11 +135,12 @@ export async function updateWarehouse(
       name = $2,
       address = $3,
       floors_count = $4,
+      logistics_hub_id = $5,
       updated_at = NOW()
     WHERE id = $1
     RETURNING *
     `,
-        [warehouseId, name, address, floorsCount]
+        [warehouseId, name, address, floorsCount, logisticsHubId ?? null]
     );
 
     return r.rows[0];
@@ -743,6 +745,78 @@ export async function getOccupancyMetrics(warehouseId: string, user: AuthUser) {
     };
 }
 
+
+export async function getHubAlternatives(warehouseId: string) {
+    const warehouseResult = await pool.query(
+        `SELECT id, name, address, client_id, logistics_hub_id FROM client_warehouses WHERE id = $1`,
+        [warehouseId]
+    );
+
+    if (!warehouseResult.rows.length) {
+        throw new AppError("Warehouse not found", 404);
+    }
+
+    const main = warehouseResult.rows[0];
+
+    if (!main.logistics_hub_id) {
+        return { main: { ...main, metrics: null }, hub_id: null, alternatives: [] };
+    }
+
+    const metricsQuery = `
+        SELECT
+            cw.id AS warehouse_id,
+            cw.name,
+            cw.address,
+            cw.logistics_hub_id,
+            COALESCE(SUM(ss.total_volume), 0) AS max_capacity_volume,
+            COALESCE(SUM(ss.used_volume), 0) AS used_volume,
+            COALESCE(SUM(ss.total_volume), 0) - COALESCE(SUM(ss.used_volume), 0) AS available_volume,
+            COUNT(ss.id) AS total_slots,
+            COUNT(ss.id) FILTER (WHERE ss.status = 'FREE') AS free_slots,
+            COUNT(ld.id) FILTER (WHERE ld.status = 'FREE') AS free_docks,
+            COUNT(ld.id) AS total_docks
+        FROM client_warehouses cw
+        LEFT JOIN warehouse_floors wf ON wf.client_warehouse_id = cw.id
+        LEFT JOIN warehouse_aisles wa ON wa.floor_id = wf.id
+        LEFT JOIN storage_slots ss ON ss.aisle_id = wa.id
+        LEFT JOIN loading_docks ld ON ld.client_warehouse_id = cw.id
+        WHERE cw.logistics_hub_id = $1
+        GROUP BY cw.id
+        ORDER BY cw.name
+    `;
+
+    const hubResult = await pool.query(metricsQuery, [main.logistics_hub_id]);
+
+    const enriched = hubResult.rows.map((row) => {
+        const maxVol = Number(row.max_capacity_volume);
+        const usedVol = Number(row.used_volume);
+        const occupancyRate = maxVol > 0 ? Number(((usedVol / maxVol) * 100).toFixed(1)) : 0;
+        return {
+            warehouse_id: row.warehouse_id,
+            name: row.name,
+            address: row.address,
+            logistics_hub_id: row.logistics_hub_id,
+            max_capacity_volume: maxVol,
+            available_volume: Number(row.available_volume),
+            used_volume: usedVol,
+            occupancy_rate: occupancyRate,
+            total_slots: Number(row.total_slots),
+            free_slots: Number(row.free_slots),
+            free_docks: Number(row.free_docks),
+            total_docks: Number(row.total_docks),
+            is_main: row.warehouse_id === warehouseId,
+        };
+    });
+
+    const mainMetrics = enriched.find((w) => w.is_main) ?? null;
+    const alternatives = enriched.filter((w) => !w.is_main);
+
+    return {
+        hub_id: main.logistics_hub_id,
+        main: mainMetrics,
+        alternatives,
+    };
+}
 
 export async function getAvailability() {
     const r = await pool.query(

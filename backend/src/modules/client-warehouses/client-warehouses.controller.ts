@@ -8,6 +8,7 @@ import {
   createParkingZone,
   createWarehouse,
   getAvailability,
+  getHubAlternatives,
   getOccupancyMetrics,
   getAvailableDocks,
   getWarehouseExterior,
@@ -235,6 +236,18 @@ export const getOccupancyMetricsHandler = async (
   try {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
     return res.json(await getOccupancyMetrics(req.params.id, req.user));
+  } catch (e) {
+    return fail(res, e);
+  }
+};
+
+export const getHubAlternativesHandler = async (
+  req: Request<{ id: string }>,
+  res: Response
+) => {
+  try {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    return res.json(await getHubAlternatives(req.params.id));
   } catch (e) {
     return fail(res, e);
   }

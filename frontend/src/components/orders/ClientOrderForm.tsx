@@ -1,7 +1,9 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import type { ClientCreateOrderPayload, DeliveryNeed, OrderLine } from '../../types/order'
+import { createOrder } from '@/app/actions/orders'
 
 
 const initialForm: ClientCreateOrderPayload = {
@@ -31,11 +33,16 @@ const initialForm: ClientCreateOrderPayload = {
   },
 }
 
-export default function ClientOrderForm() {
+interface Props {
+  warehouses?: any[]
+}
+
+export default function ClientOrderForm({ warehouses = [] }: Props) {
+  const router = useRouter()
   const [form, setForm] = useState<ClientCreateOrderPayload>(initialForm)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState('')
 
   const today = getTodayDate()
 
@@ -53,6 +60,22 @@ export default function ClientOrderForm() {
     return formatDateForInput(new Date())
   }
 
+
+  function handleWarehouseSelect(warehouseId: string) {
+    setSelectedWarehouseId(warehouseId)
+    const wh = warehouses.find((w) => w.id === warehouseId)
+    if (wh) {
+      setForm((current) => ({
+        ...current,
+        destination_warehouse_id: wh.id,
+        delivery_destination: {
+          ...current.delivery_destination,
+          delivery_address: wh.address,
+          site_name: wh.name,
+        },
+      }))
+    }
+  }
 
   function updateDestination(
     key: keyof ClientCreateOrderPayload['delivery_destination'],
@@ -126,8 +149,11 @@ export default function ClientOrderForm() {
     ) {
       return 'La date maximale de groupage ne peut pas être dans le passé.'
     }
-    if (!form.delivery_destination.delivery_address.trim()) {
-      return 'L’adresse de livraison est requise.'
+    if (warehouses.length > 0 && !selectedWarehouseId) {
+      return "Veuillez sélectionner un entrepôt de destination."
+    }
+    if (warehouses.length === 0 && !form.delivery_destination.delivery_address.trim()) {
+      return "L’adresse de livraison est requise."
     }
 
     if (!form.delivery_need.requested_delivery_date) {
@@ -150,7 +176,6 @@ export default function ClientOrderForm() {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError('')
-    setSuccess('')
 
     const validationError = validateForm()
     if (validationError) {
@@ -160,11 +185,13 @@ export default function ClientOrderForm() {
 
     setIsSubmitting(true)
 
-    await new Promise((resolve) => setTimeout(resolve, 700))
-
-    console.log('Mock order payload:', form);
-    setSuccess('Commande simulée avec succès. Le payload est affiché ci-dessous pour intégration future.')
-    setIsSubmitting(false)
+    try {
+      await createOrder(form)
+      router.push('/client/commandes')
+    } catch (err: any) {
+      setError(err.message || 'Une erreur est survenue.')
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -174,38 +201,75 @@ export default function ClientOrderForm() {
           <div className="mb-5">
             <h2 className="text-lg font-semibold text-slate-900">Destination de livraison</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Adresse de livraison et contact sur site.
+              {warehouses.length > 0 ? 'Sélectionnez un de vos entrepôts comme destination.' : 'Adresse de livraison et contact sur site.'}
             </p>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <TextField
-              label="Nom du site"
-              value={form.delivery_destination.site_name}
-              onChange={(value) => updateDestination('site_name', value)}
-              placeholder="Magasin Lyon"
-            />
-            <TextField
-              label="Contact livraison"
-              value={form.delivery_destination.delivery_contact_name}
-              onChange={(value) => updateDestination('delivery_contact_name', value)}
-              placeholder="Sophie Martin"
-            />
-            <div className="sm:col-span-2">
+          {warehouses.length > 0 ? (
+            <div className="space-y-4">
+              <label className="flex flex-col gap-2">
+                <span className="text-sm font-medium text-slate-700">Entrepôt de destination</span>
+                <select
+                  value={selectedWarehouseId}
+                  onChange={(e) => handleWarehouseSelect(e.target.value)}
+                  className="h-10 rounded-lg border border-slate-300 bg-white px-3.5 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-4 focus:ring-slate-200/70"
+                >
+                  <option value="">— Choisir un entrepôt —</option>
+                  {warehouses.map((wh) => (
+                    <option key={wh.id} value={wh.id}>
+                      {wh.name} — {wh.address}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {selectedWarehouseId && (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <TextField
+                    label="Contact livraison"
+                    value={form.delivery_destination.delivery_contact_name}
+                    onChange={(value) => updateDestination('delivery_contact_name', value)}
+                    placeholder="Sophie Martin"
+                  />
+                  <TextField
+                    label="Téléphone du contact"
+                    value={form.delivery_destination.delivery_contact_phone}
+                    onChange={(value) => updateDestination('delivery_contact_phone', value)}
+                    placeholder="0611111111"
+                  />
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
               <TextField
-                label="Adresse de livraison"
-                value={form.delivery_destination.delivery_address}
-                onChange={(value) => updateDestination('delivery_address', value)}
-                placeholder="25 avenue Livraison, Lyon"
+                label="Nom du site"
+                value={form.delivery_destination.site_name}
+                onChange={(value) => updateDestination('site_name', value)}
+                placeholder="Magasin Lyon"
+              />
+              <TextField
+                label="Contact livraison"
+                value={form.delivery_destination.delivery_contact_name}
+                onChange={(value) => updateDestination('delivery_contact_name', value)}
+                placeholder="Sophie Martin"
+              />
+              <div className="sm:col-span-2">
+                <TextField
+                  label="Adresse de livraison"
+                  value={form.delivery_destination.delivery_address}
+                  onChange={(value) => updateDestination('delivery_address', value)}
+                  placeholder="25 avenue Livraison, Lyon"
+                />
+              </div>
+              <TextField
+                label="Téléphone du contact"
+                value={form.delivery_destination.delivery_contact_phone}
+                onChange={(value) => updateDestination('delivery_contact_phone', value)}
+                placeholder="0611111111"
               />
             </div>
-            <TextField
-              label="Téléphone du contact"
-              value={form.delivery_destination.delivery_contact_phone}
-              onChange={(value) => updateDestination('delivery_contact_phone', value)}
-              placeholder="0611111111"
-            />
-          </div>
+          )}
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -362,25 +426,14 @@ export default function ClientOrderForm() {
           </div>
         ) : null}
 
-        {success ? (
-          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-            {success}
-          </div>
-        ) : null}
-
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
           >
-            {isSubmitting ? 'Simulation en cours...' : 'Simuler la création de commande'}
+            {isSubmitting ? 'Création en cours...' : 'Créer la commande'}
           </button>
-
-          <p className="mt-3 text-xs text-slate-500">
-            Le submit est mocké pour le moment. Il suffira plus tard de remplacer la logique de
-            `handleSubmit` par un appel API réel.
-          </p>
         </div>
       </form>
 

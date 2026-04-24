@@ -8,6 +8,7 @@ import {
     createParkingHandler,
     createWarehouseHandler,
     getAvailabilityHandler,
+    getHubAlternativesHandler,
     getOccupancyMetricsHandler,
     getAvailableDocksHandler,
     getByClientHandler,
@@ -48,6 +49,7 @@ router.get("/:id/layout", requireRoles("admin", "client"), getLayoutHandler);
 router.get("/:id/exterior", requireRoles("admin", "client"), getExteriorHandler);
 router.get("/:id/docks/available", requireRoles("admin", "client", "partner"), getAvailableDocksHandler);
 router.get("/:id/occupancy-metrics", requireRoles("admin", "client"), getOccupancyMetricsHandler);
+router.get("/:id/hub-alternatives", requireRoles("admin"), getHubAlternativesHandler);
 
 router.get("/:clientId", requireRoles("admin", "client"), getByClientHandler);
 

@@ -3,6 +3,8 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import type { User } from '@/types/auth'
+import "../../app/globals.css";
+
 
 interface NavLink {
   href: string
@@ -11,13 +13,12 @@ interface NavLink {
 
 const ROLE_NAV: Record<string, NavLink[]> = {
   admin: [
-    { href: '/admin/dashboard', label: 'Dashboard'  },
-    { href: '/admin/flotte',    label: 'Flotte'      },
-    { href: '/admin/clients',   label: 'Clients'     },
-    { href: '/warehouse',       label: 'Entrepôts'   },
+    { href: '/admin/dashboard', label: 'Dashboard' },
+    { href: '/admin/clients', label: 'Clients' },
   ],
   client: [
     { href: '/client/commande', label: 'Commander' },
+    { href: '/client/commandes', label: 'Mes commandes' },
     { href: '/client/warehouses', label: 'Mes entrepôts' },
   ],
   partenaire: [
@@ -26,9 +27,9 @@ const ROLE_NAV: Record<string, NavLink[]> = {
 }
 
 const ROLE_BADGE: Record<string, string> = {
-  admin: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-  client: 'bg-slate-700 text-slate-100 border-slate-600',
-  partenaire: 'bg-green-500/10 text-green-400 border-green-500/20',
+  admin: 'bg-blue-600 text-white border-blue-500',
+  client: 'bg-slate-700 text-white border-slate-600',
+  partenaire: 'bg-green-600 text-white border-green-500',
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -101,7 +102,7 @@ export default function Navbar({ user }: Props) {
 
         <button
           onClick={handleLogout}
-          className="text-xs text-slate-200 hover:text-white flex items-center gap-2 transition-colors cursor-pointer"
+          className="text-xs text-white hover:text-slate-300 flex items-center gap-2 transition-colors cursor-pointer"
         >
           <span>Déconnexion</span>
         </button>

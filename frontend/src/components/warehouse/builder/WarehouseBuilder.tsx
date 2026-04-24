@@ -33,12 +33,28 @@ const INITIAL_CONFIG = {
 
 type DraftConfig = Omit<WarehouseConfig, 'id' | 'createdAt'>
 
-export default function WarehouseBuilder() {
+interface Props {
+  existingWarehouses?: any[]
+}
+
+export default function WarehouseBuilder({ existingWarehouses = [] }: Props) {
   const router = useRouter()
   const [config, setConfig] = useState<DraftConfig>(INITIAL_CONFIG)
   const [activeFloorIdx, setActiveFloorIdx] = useState(0)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [hubMode, setHubMode] = useState<'none' | 'join' | 'new'>('none')
+  const [selectedHub, setSelectedHub] = useState('')
+  const [newHubId, setNewHubId] = useState('')
+
+  const existingHubs = Array.from(
+    new Set(existingWarehouses.map((w) => w.logistics_hub_id).filter(Boolean))
+  ) as string[]
+
+  const logisticsHubId =
+    hubMode === 'join' ? selectedHub :
+    hubMode === 'new' ? newHubId.trim() :
+    null
 
   const activeFloor = config.floors[activeFloorIdx] ?? config.floors[0]
 
@@ -102,6 +118,7 @@ export default function WarehouseBuilder() {
         name: config.name,
         address: config.address,
         floors_count: config.floors.length,
+        logistics_hub_id: logisticsHubId || undefined,
       })
 
       const cfg: WarehouseConfig = {
@@ -156,6 +173,49 @@ export default function WarehouseBuilder() {
               className={inputCls(!!errors.address)}
             />
           </Field>
+
+          {/* Hub logistique */}
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-slate-500 block">Hub logistique</label>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => { setHubMode('none'); setSelectedHub(''); setNewHubId('') }}
+                className={`h-7 px-3 rounded-md text-xs font-medium border transition-colors ${hubMode === 'none' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}
+              >
+                Aucun
+              </button>
+              {existingHubs.map((hubId) => (
+                <button
+                  key={hubId}
+                  type="button"
+                  onClick={() => { setHubMode('join'); setSelectedHub(hubId) }}
+                  className={`h-7 px-3 rounded-md text-xs font-medium border font-mono transition-colors ${hubMode === 'join' && selectedHub === hubId ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}
+                >
+                  {hubId}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => { setHubMode('new'); setSelectedHub('') }}
+                className={`h-7 px-3 rounded-md text-xs font-medium border transition-colors ${hubMode === 'new' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}
+              >
+                + Nouveau hub
+              </button>
+            </div>
+            {hubMode === 'new' && (
+              <input
+                type="text"
+                value={newHubId}
+                onChange={(e) => setNewHubId(e.target.value.toUpperCase().replace(/\s/g, '_'))}
+                placeholder="Ex. HUB_IDF_NORD"
+                className={`${inputCls(false)} font-mono`}
+              />
+            )}
+            {(hubMode === 'join' && selectedHub) && (
+              <p className="text-xs text-blue-600">Cet entrepôt rejoindra le hub <span className="font-mono">{selectedHub}</span></p>
+            )}
+          </div>
 
           <Field label="Volume par emplacement">
             <div className="flex items-center gap-2">
@@ -357,7 +417,7 @@ export default function WarehouseBuilder() {
         <button
           onClick={handleSubmit}
           disabled={isSubmitting}
-          className="w-full h-10 flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 text-white text-sm font-medium rounded-lg transition-colors cursor-pointer"
+          className="w-full h-10 flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 text-white disabled:text-slate-500 text-sm font-medium rounded-lg transition-colors cursor-pointer"
         >
           {isSubmitting ? 'Création en cours...' : 'Créer l\'entrepôt'}
           {!isSubmitting && <span className="text-base leading-none">→</span>}

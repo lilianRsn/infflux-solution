@@ -21,8 +21,11 @@ export default function InteriorTab({ warehouse, readonly, onSlotUpdate }: Props
   const floor = warehouse.floors.find((f) => f.id === selectedFloorId) ?? warehouse.floors[0]
   
   // Find the fresh slot data from the warehouse state
-  const selectedSlot = selectedSlotId 
-    ? floor.aisles.flatMap(a => a.slots).find(s => s.id === selectedSlotId) ?? null
+  const selectedAisle = selectedSlotId
+    ? floor.aisles.find((a) => a.slots.some((s) => s.id === selectedSlotId)) ?? null
+    : null
+  const selectedSlot = selectedSlotId
+    ? selectedAisle?.slots.find((s) => s.id === selectedSlotId) ?? null
     : null
 
   const handleSlotSelect = (slot: StorageSlot | null) => {
@@ -51,9 +54,10 @@ export default function InteriorTab({ warehouse, readonly, onSlotUpdate }: Props
           />
         </div>
         <div className="w-72 shrink-0 bg-white rounded-xl border border-slate-200 min-h-[400px]">
-          <SlotDetailPanel 
-            slot={selectedSlot} 
-            readonly={readonly} 
+          <SlotDetailPanel
+            slot={selectedSlot}
+            aisleCode={selectedAisle?.code ?? null}
+            readonly={readonly}
             onClose={() => setSelectedSlotId(null)}
             onUpdate={onSlotUpdate}
           />

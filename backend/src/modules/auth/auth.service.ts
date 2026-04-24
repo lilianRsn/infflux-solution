@@ -94,7 +94,9 @@ export async function loginUser(body: LoginBody) {
     {
       sub: user.id,
       email: user.email,
-      role: user.role
+      role: user.role,
+      name: user.main_contact_name || user.email.split('@')[0],
+      company_name: user.company_name
     },
     process.env.JWT_SECRET as string,
     { expiresIn: "24h" }

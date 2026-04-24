@@ -9,12 +9,14 @@ export interface CreateWarehouseBody {
   name: string;
   address: string;
   floors_count?: number;
+  logistics_hub_id?: string | null;
 }
 
 export interface PatchWarehouseBody {
   name?: string;
   address?: string;
   floors_count?: number;
+  logistics_hub_id?: string | null;
 }
 
 export interface CreateFloorBody {

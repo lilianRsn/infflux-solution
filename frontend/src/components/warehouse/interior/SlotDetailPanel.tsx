@@ -19,12 +19,13 @@ const BAR = {
 
 interface Props {
   readonly slot: StorageSlot | null
+  readonly aisleCode: string | null
   readonly readonly: boolean
   readonly onClose: () => void
   readonly onUpdate: (slot: StorageSlot) => void
 }
 
-export default function SlotDetailPanel({ slot, readonly, onClose, onUpdate }: Props) {
+export default function SlotDetailPanel({ slot, aisleCode, readonly, onClose, onUpdate }: Props) {
   const [usedVolume, setUsedVolume] = useState<number>(0)
   const [isSaving, setIsSaving] = useState(false)
 
@@ -84,7 +85,9 @@ export default function SlotDetailPanel({ slot, readonly, onClose, onUpdate }: P
       <div className="flex items-start justify-between">
         <div>
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Emplacement</p>
-          <p className="text-xl font-black text-slate-900 font-mono tracking-tighter">{slot.id}</p>
+          <p className="text-xl font-black text-slate-900 font-mono tracking-tighter">
+            {aisleCode ?? '—'} · R{slot.rank} · {slot.side === 'L' ? 'G' : 'D'}
+          </p>
         </div>
         <button onClick={onClose} className="text-slate-400 hover:text-slate-900 p-1.5 rounded-lg hover:bg-slate-100 transition-all active:scale-90">
           <span className="text-xl leading-none flex items-center justify-center w-5 h-5">×</span>
@@ -101,8 +104,8 @@ export default function SlotDetailPanel({ slot, readonly, onClose, onUpdate }: P
 
       <div className="space-y-2">
         <div className="flex justify-between text-xs font-medium">
-          <span className="text-slate-500">Occupation du volume</span>
-          <span className="text-slate-900">{slot.usedVolume} / {slot.totalVolume} m³</span>
+          <span className="text-slate-500">Palettes occupées</span>
+          <span className="text-slate-900">{slot.usedVolume} / {slot.totalVolume}</span>
         </div>
         <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
           <div
@@ -123,7 +126,7 @@ export default function SlotDetailPanel({ slot, readonly, onClose, onUpdate }: P
         <div className="border-t border-slate-100 pt-4 space-y-4">
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block ml-1">
-              Volume utilisé (m³)
+              Palettes utilisées
             </label>
             <div className="flex gap-2">
               <input
@@ -147,7 +150,7 @@ export default function SlotDetailPanel({ slot, readonly, onClose, onUpdate }: P
           
           <div className="p-3 bg-blue-50/50 rounded-lg border border-blue-100">
             <p className="text-[10px] text-blue-800 leading-relaxed font-medium">
-              L'ajustement du volume mettra automatiquement à jour le statut (Libre/Partiel/Plein) et les indicateurs globaux.
+              L'ajustement mettra automatiquement à jour le statut (Libre/Partiel/Plein) et les indicateurs globaux.
             </p>
           </div>
         </div>
