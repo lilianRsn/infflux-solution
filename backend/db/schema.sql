@@ -35,6 +35,7 @@ CREATE TABLE client_warehouses (
   name TEXT NOT NULL,
   address TEXT NOT NULL,
   floors_count INTEGER NOT NULL DEFAULT 1 CHECK (floors_count > 0),
+  logistics_hub_id TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -81,6 +82,7 @@ CREATE TABLE orders (
   order_number TEXT NOT NULL UNIQUE,
   customer_id UUID REFERENCES users(id) ON DELETE SET NULL,
   client_warehouse_id UUID REFERENCES client_warehouses(id) ON DELETE SET NULL,
+  destination_warehouse_id UUID REFERENCES client_warehouses(id) ON DELETE SET NULL,
   company_name TEXT NOT NULL,
   billing_address TEXT,
   main_contact_name TEXT,

@@ -17,6 +17,7 @@ export type DeliveryNeed = {
 }
 
 export type ClientCreateOrderPayload = {
+  client_warehouse_id?: string
   destination_warehouse_id?: string
   delivery_destination: {
     delivery_address: string

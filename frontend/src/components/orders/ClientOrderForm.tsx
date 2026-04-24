@@ -67,6 +67,7 @@ export default function ClientOrderForm({ warehouses = [] }: Props) {
     if (wh) {
       setForm((current) => ({
         ...current,
+        client_warehouse_id: wh.id,
         destination_warehouse_id: wh.id,
         delivery_destination: {
           ...current.delivery_destination,
