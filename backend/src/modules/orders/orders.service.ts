@@ -143,6 +143,7 @@ export async function createOrder(body: CreateOrderBody, user: AuthUser) {
       INSERT INTO orders (
         order_number,
         customer_id,
+        client_warehouse_id,
         destination_warehouse_id,
         company_name,
         billing_address,
@@ -177,15 +178,16 @@ export async function createOrder(body: CreateOrderBody, user: AuthUser) {
         service_level
       )
       VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,
-        $12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,
-        'pending',$24,$25,$26,$27,$28,$29,$30,$31,$32
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,
+        $13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,
+        'pending','UNPLANNED',$25,$26,$27,$28,$29,$30,$31,$32,$33
       )
       RETURNING *
       `,
       [
         orderNumber,
         customerId,
+        clientWarehouse.id,
         destination_warehouse_id || null,
         customer.company_name,
         customer.billing_address || null,

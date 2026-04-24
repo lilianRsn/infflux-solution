@@ -43,6 +43,7 @@ export interface BuildOrderInput {
   policy: OrderPolicy;
   now: Date;
   rng: Rng;
+  client_warehouse_id: string;
 }
 
 export interface OrderLinePayload {
@@ -51,6 +52,7 @@ export interface OrderLinePayload {
 }
 
 export interface CreateOrderBody {
+  client_warehouse_id: string;
   customer: {
     company_name: string;
     billing_address: string;
@@ -126,6 +128,7 @@ export function buildCreateOrderBody(input: BuildOrderInput): CreateOrderBody | 
   const urgency = input.rng.pick(input.policy.urgency_levels_pool);
 
   return {
+    client_warehouse_id: input.client_warehouse_id,
     customer: {
       company_name: input.identity.company_name,
       billing_address: input.identity.billing_address,
