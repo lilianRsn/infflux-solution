@@ -6,6 +6,7 @@ export interface WarehouseCreated {
   name: string;
   address: string;
   floors_count: number;
+  logistics_hub_id?: string | null;
 }
 
 export interface FloorCreated {
@@ -107,7 +108,7 @@ export function getWarehouseLayout(
 
 export function createWarehouse(
   client: ApiClient,
-  body: { name: string; address: string; floors_count?: number }
+  body: { name: string; address: string; floors_count?: number; logistics_hub_id?: string | null }
 ): Promise<WarehouseCreated> {
   return client.post<WarehouseCreated>("/api/client-warehouses", body);
 }

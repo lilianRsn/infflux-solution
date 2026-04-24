@@ -15,6 +15,7 @@ export interface WarehouseRegistrationParams {
   floor_level: number;
   slot_side: string;
   m3_par_carton: number;
+  logistics_hub_id?: string | null;
 }
 
 export interface StockRegistration {
@@ -33,7 +34,8 @@ export async function registerStock(
   const warehouse = await createWarehouse(client, {
     name: params.warehouse_name,
     address: params.warehouse_address,
-    floors_count: 1
+    floors_count: 1,
+    logistics_hub_id: params.logistics_hub_id
   });
 
   const floor = await createFloor(client, warehouse.id, {

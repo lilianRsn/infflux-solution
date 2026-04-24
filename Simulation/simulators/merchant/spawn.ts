@@ -37,6 +37,7 @@ async function main() {
   const billingAddress = getArg("billing-address") || address;
   const contactName = getArg("contact-name") || generateRandomContactName(rng);
   const contactPhone = getArg("contact-phone") || generateRandomPhone(rng);
+  const logisticsHubId = getArg("logistics-hub-id") || null;
 
   const scenario = {
     ...defaultScenario,
@@ -58,6 +59,7 @@ async function main() {
       ...defaultScenario.warehouse,
       warehouse_name: `Entrepot ${name}`,
       warehouse_address: address,
+      logistics_hub_id: logisticsHubId
     },
     stock_init: {
       ...defaultScenario.stock_init,
