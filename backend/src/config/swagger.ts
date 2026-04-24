@@ -191,6 +191,32 @@ const swaggerSpec = swaggerJSDoc({
                     }
                 },
 
+                ReprogramOrderRequest: {
+                    type: "object",
+                    properties: {
+                        requested_delivery_date: {
+                            type: "string",
+                            format: "date",
+                            example: "2026-04-28"
+                        },
+                        delivery_time_window: {
+                            type: "string",
+                            enum: ["morning", "afternoon", "full_day"],
+                            example: "afternoon"
+                        },
+                        urgency_level: {
+                            type: "string",
+                            enum: ["urgent", "standard", "flexible"],
+                            example: "urgent"
+                        },
+                        auto_replan: {
+                            type: "boolean",
+                            example: true
+                        }
+                    }
+                },
+
+
                 DeliveryPlan: {
                     type: "object",
                     properties: {
@@ -1159,6 +1185,63 @@ const swaggerSpec = swaggerJSDoc({
                     }
                 }
             },
+
+            "/api/delivery-plans/{id}/validate": {
+                post: {
+                    tags: ["Delivery Plans"],
+                    summary: "Validate a delivery plan",
+                    description:
+                        "Admin validation route. Changes a delivery plan from DRAFT to CONFIRMED.",
+                    security: [{ bearerAuth: [] }],
+                    parameters: [
+                        {
+                            in: "path",
+                            name: "id",
+                            required: true,
+                            schema: { type: "string", format: "uuid" }
+                        }
+                    ],
+                    responses: {
+                        "200": { description: "Delivery plan validated" },
+                        "401": { description: "Unauthorized" },
+                        "403": { description: "Forbidden" },
+                        "404": { description: "Delivery plan not found" }
+                    }
+                }
+            },
+            "/api/delivery-plans/orders/{orderId}/reprogram": {
+                patch: {
+                    tags: ["Delivery Plans"],
+                    summary: "Reprogram an order and optionally replan it",
+                    description:
+                        "Allows an admin to change requested delivery date, time window, and urgency, clear existing draft/confirmed planning for the order, and optionally trigger replanning.",
+                    security: [{ bearerAuth: [] }],
+                    parameters: [
+                        {
+                            in: "path",
+                            name: "orderId",
+                            required: true,
+                            schema: { type: "string", format: "uuid" }
+                        }
+                    ],
+                    requestBody: {
+                        required: true,
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/ReprogramOrderRequest" }
+                            }
+                        }
+                    },
+                    responses: {
+                        "200": { description: "Order reprogrammed" },
+                        "400": { description: "Validation or business rule error" },
+                        "401": { description: "Unauthorized" },
+                        "403": { description: "Forbidden" },
+                        "404": { description: "Order not found" }
+                    }
+                }
+            },
+
 
 
         }
