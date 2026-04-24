@@ -4,6 +4,7 @@ import type { Role } from "@/types/auth";
 
 const ROLE_ROUTES: Record<string, Role[]> = {
   "/admin": ["admin"],
+  "/client/warehouses": ["client", "admin"],
   "/client": ["client"],
   "/partenaire": ["partenaire"],
   "/warehouse": ["admin", "client"],
@@ -31,8 +32,9 @@ export function middleware(request: NextRequest) {
   try {
     const payload = token.split(".")[1];
     if (!payload) throw new Error("missing-payload");
-    const decoded = JSON.parse(atob(payload)) as { role?: Role; user?: { role?: Role } };
-    role = decoded.role ?? decoded.user?.role ?? null;
+    const decoded = JSON.parse(atob(payload)) as { role?: string; user?: { role?: Role } };
+    const rawRole = decoded.role ?? decoded.user?.role ?? null;
+    role = rawRole === 'partner' ? 'partenaire' : (rawRole as Role | null);
   } catch {
     const response = NextResponse.redirect(new URL("/login", request.url));
     response.cookies.delete("infflux_token");
@@ -40,8 +42,11 @@ export function middleware(request: NextRequest) {
   }
 
   for (const [prefix, allowedRoles] of Object.entries(ROLE_ROUTES)) {
-    if (pathname.startsWith(prefix) && (!role || !allowedRoles.includes(role))) {
-      return NextResponse.redirect(new URL("/login", request.url));
+    if (pathname.startsWith(prefix)) {
+      if (!role || !allowedRoles.includes(role)) {
+        return NextResponse.redirect(new URL("/login", request.url));
+      }
+      break;
     }
   }
 

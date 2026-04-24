@@ -50,7 +50,7 @@ services:
         HTTP_CODE=$$(curl -s -o /tmp/resp.json -w "%{http_code}" \
           -X POST http://api:3001/api/auth/register \
           -H "Content-Type: application/json" \
-          -d '{"email":"admin@infflux.com","password":"admin123","role":"admin","company_name":"Infflux","billing_address":"1 rue Infflux, Paris","main_contact_name":"Admin User","main_contact_phone":"0600000001","main_contact_email":"admin@infflux.com"}');
+          -d '{"email":"admin@infflux.com","password":"password123","role":"admin","company_name":"Infflux","billing_address":"1 rue Infflux, Paris","main_contact_name":"Admin User","main_contact_phone":"0600000001","main_contact_email":"admin@infflux.com"}');
         echo "[admin-seed] HTTP $$HTTP_CODE";
         cat /tmp/resp.json; echo;
         if [ "$$HTTP_CODE" = "201" ] || [ "$$HTTP_CODE" = "200" ]; then
