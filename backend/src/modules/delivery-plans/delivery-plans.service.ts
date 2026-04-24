@@ -796,10 +796,23 @@ export async function updateDeliveryPlanStatus(
               updated_at = NOW()
           WHERE id = $1
           `,
-          [assignment.loading_dock_id, currentOrderId]
-        );
-      }
-    }
+                    [assignment.loading_dock_id, currentOrderId]
+                );
+            }
+
+            await dbClient.query(
+                `
+        UPDATE orders
+        SET status = 'in_progress'
+        WHERE id IN (
+          SELECT DISTINCT order_id
+          FROM delivery_plan_orders
+          WHERE delivery_plan_id = $1
+        )
+        `,
+                [planId]
+            );
+        }
 
     if (status === "COMPLETED" || status === "BLOCKED") {
       for (const assignment of truckAssignments.rows) {

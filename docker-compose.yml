@@ -36,6 +36,33 @@ services:
       timeout: 3s
       retries: 20
 
+  admin-seed:
+    image: curlimages/curl:8.10.1
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: "no"
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        echo "[admin-seed] registering admin@infflux.com...";
+        HTTP_CODE=$$(curl -s -o /tmp/resp.json -w "%{http_code}" \
+          -X POST http://api:3001/api/auth/register \
+          -H "Content-Type: application/json" \
+          -d '{"email":"admin@infflux.com","password":"admin123","role":"admin","company_name":"Infflux","billing_address":"1 rue Infflux, Paris","main_contact_name":"Admin User","main_contact_phone":"0600000001","main_contact_email":"admin@infflux.com"}');
+        echo "[admin-seed] HTTP $$HTTP_CODE";
+        cat /tmp/resp.json; echo;
+        if [ "$$HTTP_CODE" = "201" ] || [ "$$HTTP_CODE" = "200" ]; then
+          echo "[admin-seed] admin créé";
+          exit 0;
+        fi;
+        if [ "$$HTTP_CODE" = "409" ] || grep -qi "already exists" /tmp/resp.json; then
+          echo "[admin-seed] admin déjà existant (OK)";
+          exit 0;
+        fi;
+        echo "[admin-seed] échec register admin (HTTP $$HTTP_CODE)";
+        exit 1;
+
   merchant-sim:
     build:
       context: ./Simulation/simulators
@@ -51,6 +78,24 @@ services:
       MERCHANT_BILLING_ADDRESS: "12 rue Exemple, Paris"
       MERCHANT_CONTACT_NAME: Jean Dupont
       MERCHANT_CONTACT_PHONE: "0600000000"
+    restart: always
+
+  fleet-sim:
+    build:
+      context: ./Simulation/simulators
+      dockerfile: Dockerfile
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      BACKEND_URL: http://api:3001
+      FLEET_EMAIL: admin-fleet@example.com
+      FLEET_PASSWORD: Pass1234!
+      FLEET_COMPANY_NAME: Infflux Fleet
+      FLEET_TRUCKS_MIN: "3"
+      FLEET_TRUCKS_MAX: "8"
+      FLEET_MINUTE_PAR_JOUR_MS: "60000"
+    command: ["npx", "tsx", "fleet/index.ts"]
     restart: always
 
   frontend:
