@@ -56,7 +56,7 @@ export async function createOrder(body: CreateOrderBody, user: AuthUser) {
     throw new AppError(validationError, 400);
   }
 
-  const { delivery_destination, order_lines, delivery_need } = body;
+  const { delivery_destination, order_lines, delivery_need, destination_warehouse_id } = body;
   const { customerId, customer } = await resolveCustomerData(body, user);
 
   const totalPallets = order_lines.reduce(
@@ -102,6 +102,7 @@ export async function createOrder(body: CreateOrderBody, user: AuthUser) {
       INSERT INTO orders (
         order_number,
         customer_id,
+        destination_warehouse_id,
         company_name,
         billing_address,
         main_contact_name,
@@ -135,14 +136,15 @@ export async function createOrder(body: CreateOrderBody, user: AuthUser) {
       )
       VALUES (
         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,
-        $12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,
-        'pending',$23,$24,$25,$26,$27,$28,$29,$30,$31
+        $12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,
+        'pending',$24,$25,$26,$27,$28,$29,$30,$31,$32
       )
       RETURNING *
       `,
       [
         orderNumber,
         customerId,
+        destination_warehouse_id || null,
         customer.company_name,
         customer.billing_address || null,
         customer.main_contact_name || null,
@@ -239,4 +241,28 @@ export async function getAllOrders() {
   );
 
   return result.rows;
+}
+
+export async function getOrderById(orderId: string, user: AuthUser) {
+  const orderResult = await pool.query(
+    `SELECT * FROM orders WHERE id = $1`,
+    [orderId]
+  );
+
+  if (!orderResult.rows.length) {
+    throw new AppError("Order not found", 404);
+  }
+
+  const order = orderResult.rows[0];
+
+  if (user.role === "client" && order.customer_id !== user.id) {
+    throw new AppError("Forbidden", 403);
+  }
+
+  const linesResult = await pool.query(
+    `SELECT * FROM order_lines WHERE order_id = $1 ORDER BY id`,
+    [orderId]
+  );
+
+  return { ...order, order_lines: linesResult.rows };
 }

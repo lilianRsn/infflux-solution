@@ -35,6 +35,7 @@ export interface DeliveryNeedInput {
 
 export interface CreateOrderBody {
   customer?: CustomerInput;
+  destination_warehouse_id?: string;
   delivery_destination: DeliveryDestinationInput;
   order_lines: OrderLineInput[];
   delivery_need: DeliveryNeedInput;

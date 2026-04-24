@@ -2,6 +2,23 @@
 
 import type { WarehouseAisle, WarehouseFloor, StorageSlot } from '@/lib/warehouse-data'
 
+function PackageIcon({ cx, cy, size, color }: { cx: number; cy: number; size: number; color: string }) {
+  const h = size
+  const w = size
+  const x = cx - w / 2
+  const y = cy - h / 2
+  return (
+    <g>
+      {/* Box body */}
+      <rect x={x} y={y} width={w} height={h} fill="none" stroke={color} strokeWidth="1.2" rx="1.5" />
+      {/* Lid line */}
+      <line x1={x} y1={y + h * 0.35} x2={x + w} y2={y + h * 0.35} stroke={color} strokeWidth="0.9" />
+      {/* Center vertical strap */}
+      <line x1={cx} y1={y + h * 0.35} x2={cx} y2={y + h} stroke={color} strokeWidth="0.9" />
+    </g>
+  )
+}
+
 const SLOT_FILL = {
   FREE: '#dcfce7',
   PARTIAL: '#fef3c7',
@@ -126,15 +143,17 @@ export default function WarehouseFloorPlan({ floor, selectedSlot, onSlotSelect }
                         strokeWidth={lSelected ? 2 : 1}
                         rx="2"
                       />
+                      <PackageIcon cx={ax + RACK_W / 2} cy={y + SLOT_H / 2 - 10} size={12} color="#475569" />
                       <text
                         x={ax + RACK_W / 2}
-                        y={y + SLOT_H / 2 + 4}
+                        y={y + SLOT_H / 2 + 8}
                         textAnchor="middle"
-                        fontSize="9"
-                        fill="#64748b"
+                        fontSize="11"
+                        fontWeight="600"
+                        fill="#1e293b"
                         fontFamily="sans-serif"
                       >
-                        {leftSlot.usedVolume}/{leftSlot.totalVolume}
+                        {leftSlot.totalVolume - leftSlot.usedVolume}
                       </text>
                     </g>
                   )}
@@ -152,15 +171,17 @@ export default function WarehouseFloorPlan({ floor, selectedSlot, onSlotSelect }
                         strokeWidth={rSelected ? 2 : 1}
                         rx="2"
                       />
+                      <PackageIcon cx={ax + RACK_W + WALK_W + RACK_W / 2} cy={y + SLOT_H / 2 - 10} size={12} color="#475569" />
                       <text
                         x={ax + RACK_W + WALK_W + RACK_W / 2}
-                        y={y + SLOT_H / 2 + 4}
+                        y={y + SLOT_H / 2 + 8}
                         textAnchor="middle"
-                        fontSize="9"
-                        fill="#64748b"
+                        fontSize="11"
+                        fontWeight="600"
+                        fill="#1e293b"
                         fontFamily="sans-serif"
                       >
-                        {rightSlot.usedVolume}/{rightSlot.totalVolume}
+                        {rightSlot.totalVolume - rightSlot.usedVolume}
                       </text>
                     </g>
                   )}

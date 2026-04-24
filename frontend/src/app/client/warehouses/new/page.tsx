@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { getSessionUser } from '@/lib/server-auth'
+import { fetchBackend } from '@/lib/api'
 import Navbar from '@/components/layout/Navbar'
 import WarehouseBuilder from '@/components/warehouse/builder/WarehouseBuilder'
 
@@ -9,6 +10,13 @@ export default async function NewWarehousePage() {
   const user = await getSessionUser()
   if (!user) redirect('/login')
   if (user.role !== 'client') redirect('/')
+
+  let existingWarehouses: any[] = []
+  try {
+    existingWarehouses = await fetchBackend<any[]>(`/api/client-warehouses/${user.id}`)
+  } catch {
+    // non-blocking
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -27,7 +35,7 @@ export default async function NewWarehousePage() {
             Définissez la structure de votre espace de stockage pour permettre le suivi de capacité.
           </p>
         </div>
-        <WarehouseBuilder />
+        <WarehouseBuilder existingWarehouses={existingWarehouses} />
       </main>
     </div>
   )

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Plus, Eye, Trash2 } from 'lucide-react'
+import { Plus, Eye, Trash2, GitBranch } from 'lucide-react'
 import type { WarehouseConfig } from '@/lib/warehouse-store'
 import { loadConfigs, deleteConfig, configToWarehouse } from '@/lib/warehouse-store'
 import { MOCK_WAREHOUSE, computeOccupancyStats } from '@/lib/warehouse-data'
@@ -19,6 +19,7 @@ type WarehouseItem = {
   occupancyRate: number
   availableVolume: number
   totalVolume: number
+  logisticsHubId: string | null
 }
 
 function occupancyBadge(rate: number) {
@@ -75,6 +76,7 @@ export default function WarehouseList({ initialWarehouses, metricsById }: Props)
         occupancyRate: metrics?.occupancy_rate ?? 0,
         availableVolume: metrics?.available_volume ?? 0,
         totalVolume: metrics?.max_capacity_volume ?? 0,
+        logisticsHubId: wh.logistics_hub_id ?? null,
       }
     })
 
@@ -96,6 +98,7 @@ export default function WarehouseList({ initialWarehouses, metricsById }: Props)
           occupancyRate: demoStats.occupancyRate,
           availableVolume: demoStats.totalVolume - demoStats.usedVolume,
           totalVolume: demoStats.totalVolume,
+          logisticsHubId: null,
         },
       ])
     } else {
@@ -161,6 +164,12 @@ export default function WarehouseList({ initialWarehouses, metricsById }: Props)
                     </span>
                   )}
                 </div>
+                {item.logisticsHubId && (
+                  <div className="flex items-center gap-1 mt-0.5 mb-1">
+                    <GitBranch size={10} className="text-slate-400 shrink-0" />
+                    <span className="text-[10px] font-mono text-slate-500">{item.logisticsHubId}</span>
+                  </div>
+                )}
                 <p className="text-xs text-slate-500 truncate">{item.address}</p>
               </div>
               <span className={`shrink-0 ml-2 text-[10px] px-2 py-0.5 rounded border font-medium ${occupancyBadge(item.occupancyRate)}`}>
@@ -193,13 +202,13 @@ export default function WarehouseList({ initialWarehouses, metricsById }: Props)
               )}
             </div>
 
-            {/* Volume */}
+            {/* Palettes disponibles */}
             <div className="flex justify-between text-xs mb-4">
-              <span className="text-slate-600 font-medium">Volume disponible</span>
+              <span className="text-slate-600 font-medium">Palettes disponibles</span>
               <span className="font-bold text-slate-900">
-                {item.availableVolume} m³
+                {item.availableVolume}
                 {item.totalVolume > 0 && (
-                  <span className="text-slate-400 font-normal"> / {item.totalVolume} m³</span>
+                  <span className="text-slate-400 font-normal"> / {item.totalVolume}</span>
                 )}
               </span>
             </div>

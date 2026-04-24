@@ -25,7 +25,7 @@ const ROLE_CONFIG: Record<Role, {
     label: 'Client',
     icon: User,
     activeClass: 'border-slate-600 bg-slate-900 text-white',
-    hint: { email: 'client@demo.com', password: 'client123' },
+    hint: { email: 'marchand-a@example.com', password: 'Pass1234!' },
   },
   admin: {
     label: 'Admin',
@@ -177,7 +177,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isPending}
-              className="w-full h-10 bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold rounded-lg shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98]"
+              className="w-full h-10 bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold rounded-lg shadow-sm transition-all disabled:bg-slate-400 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98]"
             >
               {isPending ? (
                 <Loader2 size={18} className="animate-spin" />

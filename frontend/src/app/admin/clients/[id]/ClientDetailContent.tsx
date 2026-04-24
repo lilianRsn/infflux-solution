@@ -11,8 +11,6 @@ import {
   ChevronRight,
   ShoppingCart,
   Package,
-  Truck,
-  Users,
 } from 'lucide-react'
 import Navbar from '@/components/layout/Navbar'
 import type { User } from '@/types/auth'
@@ -168,6 +166,7 @@ export default function ClientDetailContent({ client, warehouses, orders, adminU
                   <th className="px-5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Destination</th>
                   <th className="px-5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Urgence</th>
                   <th className="px-5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Options</th>
+                  <th className="px-5 py-3" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -226,6 +225,15 @@ export default function ClientDetailContent({ client, warehouses, orders, adminU
                             <span className="text-[11px] text-slate-400">—</span>
                           )}
                         </div>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <Link
+                          href={`/admin/commandes/${order.id}`}
+                          className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors"
+                        >
+                          Voir
+                          <ChevronRight size={13} />
+                        </Link>
                       </td>
                     </tr>
                   )

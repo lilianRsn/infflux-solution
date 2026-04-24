@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@source "../**/*.{ts,tsx,js,jsx}";
+
 
 @theme inline {
   --font-sans: var(--font-inter);
@@ -13,10 +15,7 @@ body {
   font-family: var(--font-sans), sans-serif;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
-}
+
 
 button,
 input,

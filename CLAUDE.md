@@ -215,6 +215,42 @@ Ferme la boucle entre la capacité déclarée par le client et la planification 
 
 **Principe fondamental** : la réservation porte sur un volume global, pas sur des emplacements précis. L'organisation physique interne reste entièrement à la discrétion du client. L'enum `SlotStatus` reste à trois valeurs (`FREE`, `PARTIAL`, `FULL`) — il n'existe pas de statut `RESERVED` au niveau du slot.
 
+Extension métier : Reroutage intra-hub (Stocks de débordement)
+Contexte métier
+Dans la réalité logistique, une commande est liée à une adresse de livraison fixe. La vue 2D des entrepôts prend tout son sens lorsqu'on gère des "pôles" logistiques régionaux. Si l'entrepôt de destination principale d'un client est saturé ou que ses quais sont indisponibles, l'admin Infflux ne modifie pas l'adresse de force, mais propose un reroutage opportuniste vers un entrepôt de débordement du même client situé dans la même zone.
+
+Cela permet de lisser la charge de réception du client et d'optimiser les tournées des transporteurs en évitant des retours à quai.
+
+Modèle de données (Approche Hackathon)
+Pour éviter une usine à gaz technique avec des tables de liaison complexes (many-to-many), le lien entre les entrepôts de soutien se fait via un identifiant de regroupement logique unique.
+
+Modification du modèle existant :
+
+Extrait de code
+model ClientWarehouse {
+  // ... champs existants (id, clientId, name, address...)
+  logisticsHubId  String?  // Identifiant de zone, ex: "HUB_IDF_NORD"
+}
+Mécanique et intégration UI
+Seed des données : Configurer au moins deux entrepôts pour un même client partageant le même logisticsHubId (ex: "Entrepôt Paris" et "Entrepôt Saint-Denis").
+
+Côté client (Passation de commande) : Transparence totale. Le client sélectionne son entrepôt de livraison habituel sans charge mentale supplémentaire.
+
+Côté backend (Détection) : Lors de la vérification de capacité (/capacity-check), si la capacité de l'entrepôt principal est insuffisante, l'API recherche les entrepôts partageant le même logisticsHubId.
+
+Côté admin (Modale d'attribution) :
+
+Si la capacité principale est OK → flux standard.
+
+Si la capacité principale est rouge (insuffisante) ou que les quais sont saturés → apparition d'un bloc "Alternatives dans le même hub logistique".
+
+Ce bloc affiche le ou les entrepôts de soutien avec leur capacité disponible (ex: Entrepôt Saint-Denis — 40% libre, Quai 19T disponible).
+
+Un bouton permet de réaffecter la commande à cet entrepôt alternatif avant de confirmer le transporteur.
+
+Priorité hackathon (Quick Win)
+C'est une fonctionnalité à très fort impact de démonstration (montre une plateforme intelligente et proactive) pour un coût technique très faible : un seul champ en base de données et une requête WHERE logisticsHubId = X AND id != Y.
+
 #### Modèle de capacité à trois niveaux
 
 | Notion | Calcul | Affichage |
@@ -558,4 +594,69 @@ Palettes Tailwind natives : `slate` (base) et `blue` (accent). Rien à configure
 - Installation shadcn : `npx shadcn@latest init` avec `--style default --base-color slate`
 
 > En cas de doute sur un composant, s'inspirer d'une page existante du projet plutôt que d'importer un style extérieur. Les PR introduisant de nouvelles couleurs, polices ou radius sans justification sont refusées par défaut.
+
+---
+
+## Module flotte (à implémenter)
+
+### Contexte
+
+La page de détail d'une commande (`/admin/commandes/[id]`) contient déjà un bloc placeholder "Attribution d'un transporteur" en attente de ce module. Dès que la flotte est disponible, ce bloc doit être remplacé par une vraie section d'attribution.
+
+### Modèle de données attendu
+
+```sql
+CREATE TABLE vehicles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  plate TEXT NOT NULL UNIQUE,
+  label TEXT,
+  capacity_pallets INTEGER NOT NULL,     -- capacité max en palettes
+  status TEXT NOT NULL DEFAULT 'available'
+    CHECK (status IN ('available', 'on_route', 'maintenance')),
+  current_location TEXT,                 -- adresse ou coordonnées
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+### Endpoints attendus
+
+```
+GET  /api/fleet/vehicles                          → liste tous les véhicules (admin)
+GET  /api/fleet/vehicles/available?pallets=N      → camions avec capacity_pallets >= N et status = available
+POST /api/orders/:id/assign                       → body: { vehicle_id }
+                                                    - vérifie capacity_pallets >= order.total_pallets
+                                                    - passe order.status à 'assigned'
+                                                    - passe vehicle.status à 'on_route'
+```
+
+### Intégration dans la page de détail commande
+
+Fichier : `src/components/orders/OrderDetail.tsx`
+
+Localiser le bloc avec le commentaire `/* Section admin : attribution transporteur */`. Il affiche actuellement un banner amber "En attente du module flotte". Le remplacer par :
+
+1. **Fetch des véhicules disponibles** dans la page server (`/admin/commandes/[id]/page.tsx`) :
+   ```typescript
+   const vehicles = await fetchBackend<any[]>(`/api/fleet/vehicles/available?pallets=${order.total_pallets}`)
+   ```
+
+2. **Passer `vehicles` en prop** à `OrderDetail` (ajouter `vehicles?: any[]` dans l'interface `Props`)
+
+3. **Remplacer le banner** par une liste de cards véhicules :
+   - Chaque card : plaque, capacité, statut, bouton "Attribuer"
+   - Le bouton appelle une server action `assignVehicle(orderId, vehicleId)` → `POST /api/orders/:id/assign`
+   - Après attribution réussie : `router.refresh()` pour recharger la page avec le nouveau statut
+
+4. **Si `vehicles` est vide** : afficher "Aucun véhicule disponible avec la capacité requise ({N} palettes)" avec un badge rouge.
+
+5. **Si `order.status !== 'pending'`** : afficher le véhicule assigné (une fois que le champ `vehicle_id` / `carrier_label` est renvoyé par l'API) à la place de la liste de sélection.
+
+### Checklist d'intégration
+
+- [ ] Table `vehicles` créée et seedée (3-5 camions avec capacités variées)
+- [ ] Endpoint `GET /api/fleet/vehicles/available?pallets=N` implémenté
+- [ ] Endpoint `POST /api/orders/:id/assign` implémenté avec vérification de capacité
+- [ ] Server action `assignVehicle` dans `src/app/actions/orders.ts`
+- [ ] `OrderDetail.tsx` mis à jour : suppression du banner placeholder, ajout de la liste de véhicules
+- [ ] Champ `carrier_label` ou `vehicle_plate` ajouté à la réponse de `GET /api/orders/:id` pour afficher le transporteur une fois assigné
 
